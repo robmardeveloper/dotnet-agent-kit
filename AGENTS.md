@@ -240,5 +240,70 @@
 
 ---
 
-<!-- Next block:
-     11. Working rules for the agent (who decides, non-negotiables, definition of done, honest reporting) -->
+## 11. Asynchronous code
+
+**ASYNC-1** Use `await` all the way up: never block on a task with `.Result`, `.Wait()` or `GetAwaiter().GetResult()`, never use `Thread.Sleep` (use `await Task.Delay`), and never write `async void` except for event handlers.
+- Why: blocking a thread while it waits for a task can deadlock and wastes a thread the server needs for other requests; an exception thrown in `async void` cannot be caught by the caller.
+- Based on: Microsoft Learn, *Asynchronous programming scenarios* ("Yield for tasks in a nonblocking manner", "Return 'async void' only from event handlers" and "Synchronous access to asynchronous operations").
+
+**ASYNC-2** Give every asynchronous method that does I/O a last parameter `CancellationToken cancellationToken`, and pass it on to every call that accepts one; endpoints take it as a parameter so it comes from the request. Raise rule CA2016 to `warning` in `.editorconfig`.
+- Why: when the client gives up, the work it started (queries, HTTP calls) stops too instead of running for nobody.
+- Based on: Microsoft Learn, *Task-based Asynchronous Pattern (TAP)* ("Cancellation"); *CA2016: Forward the CancellationToken parameter to methods that take one*; *Parameter binding in Minimal API apps* (`CancellationToken` is bound to `HttpContext.RequestAborted`).
+
+**ASYNC-3** End the name of every method that returns `Task`, `Task<T>`, `ValueTask` or `ValueTask<T>` with `Async`, and never add `Async` to a synchronous method. Endpoint handlers are the exception.
+- Why: the caller sees from the name alone that it has to `await` the call.
+- Based on: Microsoft Learn, *Task-based Asynchronous Pattern (TAP)* ("Naming, parameters, and return types").
+
+---
+
+## 12. Working rules for the agent
+
+These rules are about how you work, not about the code. They are our own practice; where a tool is involved, the
+source is its documentation.
+
+**WORK-1** The person decides product, money, technology (frameworks, packages, architecture) and anything that leaves this machine; you build and recommend. When there is a choice to make, show the options in a short table with one firm recommendation, then wait for the answer.
+- Why: those decisions have consequences you cannot see from the code: cost, the team, the client.
+- Based on: our own working practice.
+
+**WORK-2** Change only what the task needs, inside this repository. Never touch secrets, `appsettings.Production.json`, generated files or a migration that has already been applied, unless the task asks for it.
+- Why: a change outside the task is a change nobody asked for and nobody will review.
+- Based on: our own working practice.
+
+**WORK-3** Never add, remove or update a package without asking. Package versions live only in `Directory.Packages.props` (`ManagePackageVersionsCentrally` set to `true`); project files reference packages without `Version`.
+- Why: every package is code you did not write and must keep up to date (see SEC-7); with central versions, all projects use the same version and an update is one line.
+- Based on: Microsoft Learn, *Central Package Management* (NuGet).
+
+**WORK-4** Put every external service (email, payments, third-party APIs) behind an interface (ARCH-2) with a fake implementation, and use the fake in development and in tests. Never call a real paid or external service without permission.
+- Why: the code can be built, run and tested by anyone, at no cost and without side effects such as a real email being sent.
+- Based on: ARCH-2, DI-1 and TEST-3 in this file.
+
+**WORK-5** Ask before anything that cannot be undone or that leaves this machine: pushing, publishing, deleting, sending, paying or creating accounts. Each confirmation covers one action. If a permission is denied, do not look for another way to do the same thing.
+- Why: these are the actions where a mistake cannot be fixed with another commit.
+- Based on: our own working practice.
+
+**WORK-6** Never read or print secret values: check that a secret exists without showing it, and never pass one on the command line (it stays in the shell history and in logs).
+- Why: a secret you have read can end up in your output, a log or a commit (see SEC-1).
+- Based on: our own working practice; SEC-1 in this file.
+
+**WORK-7** A change is done only when all of these pass, run in this order from the repository root, and no test was deleted, skipped or weakened to get there:
+  ```
+  dotnet restore
+  dotnet build -warnaserror
+  dotnet test
+  dotnet format --verify-no-changes
+  dotnet list package --vulnerable --include-transitive
+  ```
+- Why: each command checks something different (compiles cleanly, behaves as before, follows the style, has no known vulnerable package), and together they can be run by anyone, so "done" means the same for everybody.
+- Based on: Microsoft Learn, *dotnet format* (`--verify-no-changes` "terminates with a non zero exit code if any files would have been formatted"); SA-2, TEST-1 and SEC-7 in this file.
+
+**WORK-8** When a test fails, fix the code, not the test. If you believe the test itself is wrong, stop and explain why instead of changing it.
+- Why: a test changed to pass no longer protects anything, and the reason it failed is lost.
+- Based on: our own working practice; TEST-1 in this file.
+
+**WORK-9** Make small commits, one logical change each, with a message that explains why the change was made.
+- Why: a small commit can be reviewed and reverted on its own; the code already shows what changed, only the message can say why.
+- Based on: our own working practice.
+
+**WORK-10** End every task with a short report: what you did, what is left, and how you checked it (the commands and their result). If something failed, say so and show the output; if something was not tested, say so and why; if something you said turns out to be false, correct it.
+- Why: the person decides on the basis of your report, so a report that hides a failure leads to a wrong decision.
+- Based on: our own working practice.
