@@ -188,6 +188,37 @@
 
 ---
 
-<!-- Next blocks, in review order:
-     9. Security (OWASP)
+## 9. Security
+
+**SEC-1** Never put secrets (passwords, connection strings with credentials, API keys) in code, in `appsettings*.json` or anywhere in the repository: use User Secrets in development and environment variables or a secret store in production.
+- Why: anything committed stays in the history and reaches everyone who can read the repository, even after it is deleted.
+- Based on: Microsoft Learn, *Safe storage of app secrets in development in ASP.NET Core* ("Never store passwords or other sensitive data in source code or configuration files").
+
+**SEC-2** Query the database through LINQ or the parameterized `FromSql`/`ExecuteSql`; never build SQL by joining strings with input, and never pass input to `FromSqlRaw` or `ExecuteSqlRaw`.
+- Why: a value joined into the SQL text can end the statement and run another one (SQL injection); a parameter is always treated as data.
+- Based on: OWASP Top 10:2025, A05 Injection; Microsoft Learn, *SQL Queries* (EF Core): "Passing parameters".
+
+**SEC-3** Validate every input on the server, at the boundary, before using it: accept only the expected type, format, length and range (allowlist), check that it makes sense for the business, and reject anything else. Never "clean" bad input instead of rejecting it.
+- Why: what the client checks can be skipped; only the server is under your control. Validation does not replace SEC-2: it is a second layer.
+- Based on: OWASP *Input Validation Cheat Sheet* (allowlist, syntactic and semantic validation, server side).
+
+**SEC-4** Require authorization by default: set a fallback policy that requires an authenticated user, mark as anonymous only the endpoints that are public on purpose, and check that the user may act on the specific resource requested, not just that they are logged in.
+- Why: an endpoint that someone forgets to protect is open; with a default policy, forgetting closes it instead. Being logged in does not mean being allowed to read another user's loan.
+- Based on: OWASP Top 10:2025, A01 Broken Access Control; Microsoft Learn, *Create an ASP.NET Core app with user data protected by authorization* ("Require authenticated users": fallback policy and `[AllowAnonymous]`).
+
+**SEC-5** Never send internal error details to the client: the developer exception page only in `Development`; elsewhere `UseExceptionHandler` with `AddProblemDetails`, so the client gets a standard problem response without stack traces or exception messages.
+- Why: stack traces and exception messages reveal code, libraries and data that help an attacker.
+- Based on: OWASP Top 10:2025, A10 Mishandling of Exceptional Conditions; Microsoft Learn, *Handle errors in ASP.NET Core* ("Do not serve sensitive error information to clients").
+
+**SEC-6** Never write to logs passwords, access tokens, session IDs, keys or sensitive personal data; log identifiers and events instead, and mask whatever must appear.
+- Why: logs are read by more people and kept longer than the data they come from, so a secret in a log is a leaked secret.
+- Based on: OWASP *Logging Cheat Sheet* ("Data to exclude"); OWASP Top 10:2025, A09 Security Logging & Alerting Failures.
+
+**SEC-7** Never leave a package with a known vulnerability: keep NuGet Audit on (it runs on every restore), treat its warnings `NU1901`-`NU1904` as work to fix before the change is done, and check with `dotnet list package --vulnerable --include-transitive`. Suppress an advisory only with `NuGetAuditSuppress` and a written reason (see SA-4).
+- Why: most of the code that runs is in your dependencies, and a known vulnerability is the first one attackers try.
+- Based on: OWASP Top 10:2025, A03 Software Supply Chain Failures; Microsoft Learn, *Auditing package dependencies for security vulnerabilities* (NuGet).
+
+---
+
+<!-- Next block:
      10. Working rules for the agent (who decides, non-negotiables, definition of done, honest reporting) -->
