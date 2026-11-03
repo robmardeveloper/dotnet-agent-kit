@@ -146,6 +146,48 @@
 
 ---
 
+## 7. Testing
+
+**TEST-1** Ship every change of behaviour with a test. To fix a bug, first write a test that reproduces it and fails, then make it pass.
+- Why: the test proves the change works and keeps the bug from coming back; seeing it fail first proves it really catches the bug.
+- Based on: Martin, *Clean Code* (1st ed.), ch. 9 ("The three laws of TDD"; F.I.R.S.T.: tests are written in time, before the production code); Microsoft Learn, *Best practices for writing unit tests* (.NET): "Protection against regression".
+
+**TEST-2** Write each test as Arrange, Act, Assert, with a single Act and no logic (`if`, loops); use `[Theory]` for several inputs. Name it `Method_Scenario_ExpectedResult` (for example `Renew_LoanIsOverdue_ThrowsException`).
+- Why: a test must be readable at a glance and obviously correct; when it fails, its name alone says which behaviour broke.
+- Based on: Microsoft Learn, *Best practices for writing unit tests*: "Follow test naming standards", "Arrange your tests", "Avoid multiple Act tasks", "Avoid coding logic in unit tests".
+
+**TEST-3** Keep unit tests fast, independent and repeatable: no real clock, network, file system or shared database, and no order between tests. Control time with `FakeTimeProvider` (see DI-2).
+- Why: a test that depends on the time of day or on another test passes or fails at random, and then nobody trusts the suite.
+- Based on: Martin, *Clean Code*, ch. 9 (F.I.R.S.T.: Fast, Independent, Repeatable, Self-validating, Timely); Microsoft Learn, *Best practices for writing unit tests*: "Avoid infrastructure dependencies", "Handle stub static references with seams".
+
+**TEST-4** Test behaviour through the public API: never test private methods directly and never open up members (`public`, `internal`) only so a test can reach them.
+- Why: tests tied to the inside of a class break on every refactoring even when the behaviour is still correct.
+- Based on: Microsoft Learn, *Best practices for writing unit tests*: "Validate private methods with public methods".
+
+**TEST-5** Cover each API endpoint with integration tests on `WebApplicationFactory<Program>`, replacing only what is external (database, outside services) and using SQLite in memory for the database, not the EF Core in-memory provider.
+- Why: unit tests do not prove that routing, DI, serialization and persistence work together; the SQLite provider behaves like a real relational database.
+- Based on: Microsoft Learn, *Integration tests in ASP.NET Core* (`WebApplicationFactory`, `ConfigureTestServices`, SQLite recommended for in-memory testing).
+
+## 8. Static analysis
+
+**SA-1** Keep nullable reference types on (`<Nullable>enable</Nullable>`) and do not use the null-forgiving operator `!` to silence a warning: add a check or fix the type.
+- Why: each nullable warning is a possible `NullReferenceException`; each `!` is a place where the compiler can no longer protect you.
+- Based on: Microsoft Learn, *Nullable reference types* (C#): "Use `!` sparingly".
+
+**SA-2** Build with warnings as errors and with the .NET analyzers raised above the default (`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`, `<AnalysisLevel>latest-Recommended</AnalysisLevel>`), set once for the whole solution in `Directory.Build.props`.
+- Why: a warning that does not stop the build gets ignored and piles up; one shared setting keeps every project to the same standard.
+- Based on: Microsoft Learn, *Code analysis in .NET* ("Enable additional rules", "Treat warnings as errors").
+
+**SA-3** Enforce the code style of `.editorconfig` in the build (`<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>`), with the important style rules set to `warning`.
+- Why: by default style is only checked inside the IDE; in the build it is checked for every author, human or agent.
+- Based on: Microsoft Learn, *Code analysis in .NET* ("Code-style analysis", "Enable on build").
+
+**SA-4** Never suppress a warning without a written reason: use `[SuppressMessage]` with `Justification`, or a comment next to `#pragma warning disable`, scoped to the smallest possible piece of code. Never disable a rule for the whole project just to make the build pass.
+- Why: an unexplained suppression hides a real problem, and the next reader cannot tell whether it is still safe.
+- Based on: Microsoft Learn, *Suppress code analysis warnings* (`SuppressMessageAttribute` and its `Justification` property).
+
+---
+
 <!-- Next blocks, in review order:
-     7. Testing   8. Static analysis   9. Security (OWASP)
+     9. Security (OWASP)
      10. Working rules for the agent (who decides, non-negotiables, definition of done, honest reporting) -->
