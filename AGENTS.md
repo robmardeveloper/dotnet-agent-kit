@@ -220,5 +220,25 @@
 
 ---
 
+## 10. Logging
+
+**LOG-1** Log only through an `ILogger<T>` received by constructor injection, where `T` is the class that writes the log; never through `Console.WriteLine`, `Debug.WriteLine` or a logger factory created by hand.
+- Why: the host decides where logs go, at what level and with what filters; the category (the class name) tells you which code wrote each line.
+- Based on: Microsoft Learn, *Logging in C#* ("Integration with hosts and dependency injection" and "Log category").
+
+**LOG-2** Write log messages as constant templates with named placeholders in PascalCase (`"Loan {LoanId} renewed until {DueDate}"`); never build them with string interpolation or concatenation. Raise rule CA2254 to `warning` in `.editorconfig` so the build catches it.
+- Why: with a template, each value is stored as a separate field that can be searched and filtered (structured logging); an interpolated string turns everything into plain text and is built even when the level is off.
+- Based on: Microsoft Learn, *Logging in C#* ("Log message template"); *CA2254: Template should be a static expression*.
+
+**LOG-3** Declare each log message once, as a `partial` method marked with `[LoggerMessage]` (level, message and, where useful, event ID), and call that method instead of `LogInformation`, `LogWarning` and the like.
+- Why: the message is generated and checked at compile time, values are not boxed, and the messages of a class are listed in one place instead of being spread as strings through the code.
+- Based on: Microsoft Learn, *High-performance logging* (source generation with `LoggerMessageAttribute`).
+
+**LOG-4** Choose the level by what happened: `Information` for the normal flow, `Warning` for something unexpected the operation survives, `Error` for a failure of the current operation, `Critical` for one that needs immediate attention; `Debug` and `Trace` only for diagnosis. When logging an exception, pass the exception object itself, not just `ex.Message`. What must never be logged is in SEC-6.
+- Why: levels are what lets production keep only what matters; the exception object keeps its type and stack trace, which the message alone loses.
+- Based on: Microsoft Learn, *Logging in C#* ("Log level" table and "Log exceptions").
+
+---
+
 <!-- Next block:
-     10. Working rules for the agent (who decides, non-negotiables, definition of done, honest reporting) -->
+     11. Working rules for the agent (who decides, non-negotiables, definition of done, honest reporting) -->
