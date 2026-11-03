@@ -108,8 +108,44 @@
 - Why: the singleton keeps the scoped service alive for the whole application, sharing state between requests (a "captive dependency").
 - Based on: Microsoft Learn, *Dependency injection guidelines* (.NET): "Captive dependency" (term by Mark Seemann) and scope validation.
 
+## 5. Rich domain
+
+**DOM-1** Put business rules inside the entities: change state only through methods named after domain actions (`loan.Renew()`, `loan.Return()`), with private setters. Services never set an entity's properties to apply a rule.
+- Why: if the rules live in services, any service can forget or contradict them; inside the entity they are applied every time.
+- Based on: Martin Fowler, "AnemicDomainModel" (martinfowler.com, 2003); Vaughn Vernon, *Implementing Domain-Driven Design* (2013), ch. 1 ("Anemia and Memory Loss").
+
+**DOM-2** Never let an entity exist in an invalid state: constructors and factory methods check the invariants, and every method rejects a change that would break one.
+- Why: if an object can be invalid, every piece of code that uses it has to check it again, and some will not.
+- Based on: Eric Evans, *Domain-Driven Design* (2003), ch. 6 (Aggregates: invariants are maintained at every change); Vernon, *Implementing Domain-Driven Design*, ch. 10 ("Model true invariants in consistency boundaries").
+
+**DOM-3** Model concepts defined by their value (money, date range, ISBN, email address) as immutable value objects (`record`) that validate themselves, instead of passing raw `string`, `int` or `decimal`.
+- Why: a raw `string` accepts any text; an `Isbn` type can only hold a valid ISBN, and the check lives in one place.
+- Based on: Evans, *Domain-Driven Design*, ch. 5 (Value Objects, designed as immutable); Fowler, *Refactoring* (2nd ed.): "Primitive Obsession" and "Replace Primitive with Object".
+
+**DOM-4** Group entities that must stay consistent together into an aggregate: code outside it holds references only to the root, other aggregates are referenced by ID, and a single transaction changes a single aggregate.
+- Why: the root is the only door in, so it can enforce every invariant; small aggregates linked by ID keep transactions short and avoid loading half the database.
+- Based on: Evans, *Domain-Driven Design*, ch. 6 (Aggregates); Vernon, *Implementing Domain-Driven Design*, ch. 10 ("Design small aggregates", "Reference other aggregates by identity").
+
+**DOM-5** Keep application services thin: they load the aggregate, call a domain method, save and return. A domain service is only for a rule that does not belong to any single entity.
+- Why: logic that slips into services leaves the entities as empty data holders, which is the anemic model of DOM-1.
+- Based on: Evans, *Domain-Driven Design*, ch. 5 (Services "should be used judiciously and not allowed to strip the entities and value objects of all their behavior"); Vernon, *Implementing Domain-Driven Design*, ch. 7 and ch. 14.
+
+## 6. Separation of concerns
+
+**SEP-1** Keep endpoints, controllers and view models free of business rules: they translate the input, call the application layer and translate the result.
+- Why: logic in the presentation layer is hard to test and gets duplicated when a second entry point (another endpoint, a job, a UI) needs it.
+- Based on: Robert C. Martin, *Clean Architecture* (2017), ch. 22 (interface adapters) and ch. 23 ("Presenters and Humble Objects").
+
+**SEP-2** Make each method either change state or return data, never both (queries have no side effects).
+- Why: a caller can then ask a question as often as it likes without changing anything by accident.
+- Based on: Command-Query Separation (Bertrand Meyer); Martin, *Clean Code* (1st ed.), ch. 3, "Command query separation"; Fowler, *Refactoring* (2nd ed.): "Separate Query from Modifier".
+
+**SEP-3** Keep every text shown to users out of the code: put it in resource files (`.resx`, one per language) and read it through `IStringLocalizer<T>`.
+- Why: wording can change, and languages can be added, without touching or recompiling the logic.
+- Based on: Microsoft Learn, *Globalization and localization in ASP.NET Core*.
+
 ---
 
 <!-- Next blocks, in review order:
-     5. Rich domain   6. Separation of concerns   7. Testing   8. Static analysis   9. Security (OWASP)
+     7. Testing   8. Static analysis   9. Security (OWASP)
      10. Working rules for the agent (who decides, non-negotiables, definition of done, honest reporting) -->
