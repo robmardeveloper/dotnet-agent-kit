@@ -1,0 +1,34 @@
+using CourtBookings.Application.Courts;
+using CourtBookings.Domain.Bookings;
+using Microsoft.Extensions.Logging;
+
+namespace CourtBookings.Application.Bookings;
+
+/// <summary>Books a court: loads what the rule needs, lets the domain decide, saves (DOM-5).</summary>
+public sealed partial class BookCourtHandler(
+    ICourtRepository courts,
+    IBookingRepository bookings,
+    TimeProvider timeProvider,
+    ILogger<BookCourtHandler> logger)
+{
+    public async Task<BookingConfirmation> HandleAsync(BookCourtCommand command, CancellationToken cancellationToken)
+    {
+        if (!await courts.ExistsAsync(command.CourtId, cancellationToken))
+        {
+            throw new BookingRuleException(BookingError.CourtNotFound);
+        }
+
+        var slot = TimeSlot.Create(command.Start, command.Duration);
+        var now = timeProvider.GetUtcNow();
+        var takenSlots = await bookings.ListSlotsEndingAfterAsync(command.CourtId, now, cancellationToken);
+
+        var booking = Booking.Create(command.CourtId, slot, takenSlots, now);
+        await bookings.AddAsync(booking, cancellationToken);
+
+        LogBookingConfirmed(booking.Id, booking.CourtId, booking.Slot.Start);
+        return new BookingConfirmation(booking.Id, booking.CourtId, booking.Slot.Start, booking.Slot.End);
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Booking {BookingId} confirmed for court {CourtId} at {StartTime}")]
+    private partial void LogBookingConfirmed(int bookingId, int courtId, DateTimeOffset startTime);
+}

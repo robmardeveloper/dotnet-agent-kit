@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CourtBookings.Application\CourtBookings.Application.csproj" />
+    <!-- Only for the composition root (DI-5): Program.cs wires Infrastructure in. -->
+    <ProjectReference Include="..\CourtBookings.Infrastructure\CourtBookings.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="CourtNotFound" xml:space="preserve">
+    <value>That court does not exist.</value>
+  </data>
+  <data name="DurationNotAllowed" xml:space="preserve">
+    <value>A booking lasts 60, 90 or 120 minutes.</value>
+  </data>
+  <data name="StartNotOnHalfHour" xml:space="preserve">
+    <value>A booking starts on the hour or at half past.</value>
+  </data>
+  <data name="StartsInThePast" xml:space="preserve">
+    <value>That time has already passed.</value>
+  </data>
+  <data name="TooFarAhead" xml:space="preserve">
+    <value>You can book at most 7 days ahead.</value>
+  </data>
+  <data name="SlotAlreadyTaken" xml:space="preserve">
+    <value>The court is already booked at that time.</value>
+  </data>
+</root>
