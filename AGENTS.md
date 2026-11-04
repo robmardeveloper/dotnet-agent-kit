@@ -66,9 +66,9 @@
 
 <!-- Adapt: the project names below are an example. Keep the direction of the references. -->
 
-**ARCH-1** Keep four layers, each in its own project (`Domain`, `Application`, `Infrastructure` and the entry point, for example `Api`), with project references pointing only inward: `Api` → `Application` → `Domain`, and `Infrastructure` → `Application`. `Domain` references no other project and no framework package (no EF Core, no ASP.NET Core).
+**ARCH-1** Keep four layers, each in its own project (`Domain`, `Application`, `Infrastructure` and the entry point, for example `Api`), with project references pointing only inward: `Api` → `Application` → `Domain`, and `Infrastructure` → `Application`. The entry point may also reference `Infrastructure`, but only to wire it in the composition root (DI-5). `Domain` references no other project and no framework package (no EF Core, no ASP.NET Core).
 - Why: the business rules stay independent of the database, the web framework and the UI, so those can change without touching them.
-- Based on: the Dependency Rule, "source code dependencies must point only inward, toward higher-level policies". Robert C. Martin, *Clean Architecture* (2017), ch. 22.
+- Based on: the Dependency Rule, "source code dependencies must point only inward, toward higher-level policies". Robert C. Martin, *Clean Architecture* (2017), ch. 22; the composition-root exception is his "Main" component, the dirtiest one, which depends on everything (ch. 26).
 
 **ARCH-2** Never mention a name from an outer layer in an inner one: when `Application` needs something from outside (database, email, payments), it declares the interface and `Infrastructure` implements it.
 - Why: this is how the flow of control can go outward while the source code dependencies still point inward.
@@ -110,7 +110,7 @@
 
 ## 5. Rich domain
 
-**DOM-1** Put business rules inside the entities: change state only through methods named after domain actions (`loan.Renew()`, `loan.Return()`), with private setters. Services never set an entity's properties to apply a rule.
+**DOM-1** Put business rules inside the entities: change state only through methods named after domain actions (`booking.Cancel()`, `booking.CheckIn()`), with private setters. Services never set an entity's properties to apply a rule.
 - Why: if the rules live in services, any service can forget or contradict them; inside the entity they are applied every time.
 - Based on: Martin Fowler, "AnemicDomainModel" (martinfowler.com, 2003); Vaughn Vernon, *Implementing Domain-Driven Design* (2013), ch. 1 ("Anemia and Memory Loss").
 
@@ -136,9 +136,9 @@
 - Why: logic in the presentation layer is hard to test and gets duplicated when a second entry point (another endpoint, a job, a UI) needs it.
 - Based on: Robert C. Martin, *Clean Architecture* (2017), ch. 22 (interface adapters) and ch. 23 ("Presenters and Humble Objects").
 
-**SEP-2** Make each method either change state or return data, never both (queries have no side effects).
-- Why: a caller can then ask a question as often as it likes without changing anything by accident.
-- Based on: Command-Query Separation (Bertrand Meyer); Martin, *Clean Code* (1st ed.), ch. 3, "Command query separation"; Fowler, *Refactoring* (2nd ed.): "Separate Query from Modifier".
+**SEP-2** Make each method either change state or return data, never both (queries have no side effects). The one exception: a command that creates something may return what it created (its ID and the values it stored), and nothing else.
+- Why: a caller can then ask a question as often as it likes without changing anything by accident. Without the exception, the caller could not find what it has just created.
+- Based on: Command-Query Separation (Bertrand Meyer); Martin, *Clean Code* (1st ed.), ch. 3, "Command query separation"; Fowler, *Refactoring* (2nd ed.): "Separate Query from Modifier". The exception is our own working practice.
 
 **SEP-3** Keep every text shown to users out of the code: put it in resource files (`.resx`, one per language) and read it through `IStringLocalizer<T>`.
 - Why: wording can change, and languages can be added, without touching or recompiling the logic.
@@ -152,7 +152,7 @@
 - Why: the test proves the change works and keeps the bug from coming back; seeing it fail first proves it really catches the bug.
 - Based on: Martin, *Clean Code* (1st ed.), ch. 9 ("The three laws of TDD"; F.I.R.S.T.: tests are written in time, before the production code); Microsoft Learn, *Best practices for writing unit tests* (.NET): "Protection against regression".
 
-**TEST-2** Write each test as Arrange, Act, Assert, with a single Act and no logic (`if`, loops); use `[Theory]` for several inputs. Name it `Method_Scenario_ExpectedResult` (for example `Renew_LoanIsOverdue_ThrowsException`).
+**TEST-2** Write each test as Arrange, Act, Assert, with a single Act and no logic (`if`, loops); use `[Theory]` for several inputs. Name it `Method_Scenario_ExpectedResult` (for example `Cancel_LessThan24HoursBefore_ChargesPenalty`).
 - Why: a test must be readable at a glance and obviously correct; when it fails, its name alone says which behaviour broke.
 - Based on: Microsoft Learn, *Best practices for writing unit tests*: "Follow test naming standards", "Arrange your tests", "Avoid multiple Act tasks", "Avoid coding logic in unit tests".
 
@@ -203,7 +203,7 @@
 - Based on: OWASP *Input Validation Cheat Sheet* (allowlist, syntactic and semantic validation, server side).
 
 **SEC-4** Require authorization by default: set a fallback policy that requires an authenticated user, mark as anonymous only the endpoints that are public on purpose, and check that the user may act on the specific resource requested, not just that they are logged in.
-- Why: an endpoint that someone forgets to protect is open; with a default policy, forgetting closes it instead. Being logged in does not mean being allowed to read another user's loan.
+- Why: an endpoint that someone forgets to protect is open; with a default policy, forgetting closes it instead. Being logged in does not mean being allowed to cancel another user's booking.
 - Based on: OWASP Top 10:2025, A01 Broken Access Control; Microsoft Learn, *Create an ASP.NET Core app with user data protected by authorization* ("Require authenticated users": fallback policy and `[AllowAnonymous]`).
 
 **SEC-5** Never send internal error details to the client: the developer exception page only in `Development`; elsewhere `UseExceptionHandler` with `AddProblemDetails`, so the client gets a standard problem response without stack traces or exception messages.
@@ -226,7 +226,7 @@
 - Why: the host decides where logs go, at what level and with what filters; the category (the class name) tells you which code wrote each line.
 - Based on: Microsoft Learn, *Logging in C#* ("Integration with hosts and dependency injection" and "Log category").
 
-**LOG-2** Write log messages as constant templates with named placeholders in PascalCase (`"Loan {LoanId} renewed until {DueDate}"`); never build them with string interpolation or concatenation. Raise rule CA2254 to `warning` in `.editorconfig` so the build catches it.
+**LOG-2** Write log messages as constant templates with named placeholders in PascalCase (`"Booking {BookingId} confirmed for {StartTime}"`); never build them with string interpolation or concatenation. Raise rule CA2254 to `warning` in `.editorconfig` so the build catches it.
 - Why: with a template, each value is stored as a separate field that can be searched and filtered (structured logging); an interpolated string turns everything into plain text and is built even when the level is off.
 - Based on: Microsoft Learn, *Logging in C#* ("Log message template"); *CA2254: Template should be a static expression*.
 
