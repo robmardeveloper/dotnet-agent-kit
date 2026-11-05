@@ -17,7 +17,7 @@ public sealed class CancelBookingEndpointTests : IAsyncDisposable
 
     public CancelBookingEndpointTests()
     {
-        client = factory.CreateClient();
+        client = factory.CreateClientForAlice();
     }
 
     [Fact]

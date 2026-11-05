@@ -14,13 +14,14 @@ public sealed class BookCourtHandlerTests
     private static readonly TimeSpan TwoHours = TimeSpan.FromMinutes(120);
 
     private readonly InMemoryBookingRepository bookings = new();
+    private readonly InMemoryEmailSender emailSender = new();
     private readonly FakeTimeProvider timeProvider = new(Now);
 
     [Fact]
     public async Task HandleAsync_FreeSlot_SavesBookingAndConfirmsIt()
     {
         var handler = CreateHandler(new InMemoryCourtRepository(CourtId));
-        var command = new BookCourtCommand(CourtId, Now.AddHours(1), OneHour);
+        var command = new BookCourtCommand(TestUsers.Alice, TestUsers.AliceEmail, CourtId, Now.AddHours(1), OneHour);
 
         var confirmation = await handler.HandleAsync(command, TestContext.Current.CancellationToken);
 
@@ -29,10 +30,33 @@ public sealed class BookCourtHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_FreeSlot_EmailsTheConfirmationToTheUser()
+    {
+        var handler = CreateHandler(new InMemoryCourtRepository(CourtId));
+
+        var confirmation = await handler.HandleAsync(
+            new BookCourtCommand(TestUsers.Alice, TestUsers.AliceEmail, CourtId, Now.AddHours(1), OneHour), TestContext.Current.CancellationToken);
+
+        Assert.Equal((TestUsers.AliceEmail, confirmation), Assert.Single(emailSender.Sent));
+    }
+
+    [Fact]
+    public async Task HandleAsync_SlotAlreadyTaken_SendsNoEmail()
+    {
+        var handler = CreateHandler(new InMemoryCourtRepository(CourtId));
+        var command = new BookCourtCommand(TestUsers.Alice, TestUsers.AliceEmail, CourtId, Now.AddHours(1), OneHour);
+        await handler.HandleAsync(command, TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<BookingRuleException>(() => handler.HandleAsync(command, TestContext.Current.CancellationToken));
+
+        Assert.Single(emailSender.Sent);
+    }
+
+    [Fact]
     public async Task HandleAsync_UnknownCourt_ThrowsCourtNotFound()
     {
         var handler = CreateHandler(new InMemoryCourtRepository());
-        var command = new BookCourtCommand(CourtId, Now.AddHours(1), OneHour);
+        var command = new BookCourtCommand(TestUsers.Alice, TestUsers.AliceEmail, CourtId, Now.AddHours(1), OneHour);
 
         var exception = await Assert.ThrowsAsync<BookingRuleException>(
             () => handler.HandleAsync(command, TestContext.Current.CancellationToken));
@@ -44,10 +68,10 @@ public sealed class BookCourtHandlerTests
     public async Task HandleAsync_CourtInUseByABookingThatAlreadyStarted_ThrowsSlotAlreadyTaken()
     {
         var handler = CreateHandler(new InMemoryCourtRepository(CourtId));
-        var earlier = new BookCourtCommand(CourtId, Now.AddHours(1), TwoHours);
+        var earlier = new BookCourtCommand(TestUsers.Alice, TestUsers.AliceEmail, CourtId, Now.AddHours(1), TwoHours);
         await handler.HandleAsync(earlier, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromMinutes(75));
-        var command = new BookCourtCommand(CourtId, Now.AddHours(2).AddMinutes(30), OneHour);
+        var command = new BookCourtCommand(TestUsers.Alice, TestUsers.AliceEmail, CourtId, Now.AddHours(2).AddMinutes(30), OneHour);
 
         var exception = await Assert.ThrowsAsync<BookingRuleException>(
             () => handler.HandleAsync(command, TestContext.Current.CancellationToken));
@@ -58,16 +82,16 @@ public sealed class BookCourtHandlerTests
     [Fact]
     public async Task HandleAsync_SlotOfACancelledBooking_BooksIt()
     {
-        var cancelled = Booking.Create(CourtId, TimeSlot.Create(Now.AddHours(1), OneHour), [], Now);
+        var cancelled = Booking.Create(TestUsers.Alice, CourtId, TimeSlot.Create(Now.AddHours(1), OneHour), [], Now);
         cancelled.Cancel(Now);
         bookings.Saved.Add(cancelled);
         var handler = CreateHandler(new InMemoryCourtRepository(CourtId));
 
-        await handler.HandleAsync(new BookCourtCommand(CourtId, Now.AddHours(1), OneHour), TestContext.Current.CancellationToken);
+        await handler.HandleAsync(new BookCourtCommand(TestUsers.Alice, TestUsers.AliceEmail, CourtId, Now.AddHours(1), OneHour), TestContext.Current.CancellationToken);
 
         Assert.Equal(2, bookings.Saved.Count);
     }
 
     private BookCourtHandler CreateHandler(InMemoryCourtRepository courts) =>
-        new(courts, bookings, timeProvider, NullLogger<BookCourtHandler>.Instance);
+        new(courts, bookings, emailSender, timeProvider, NullLogger<BookCourtHandler>.Instance);
 }

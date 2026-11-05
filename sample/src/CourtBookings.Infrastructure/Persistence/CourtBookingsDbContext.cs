@@ -1,5 +1,6 @@
 using CourtBookings.Domain.Bookings;
 using CourtBookings.Domain.Courts;
+using CourtBookings.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -14,7 +15,7 @@ public sealed class CourtBookingsDbContext(DbContextOptions<CourtBookingsDbConte
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         // SQLite has no type for DateTimeOffset and cannot compare it in a query; stored as a
-        // number, the comparison in ListSlotsEndingAfterAsync runs in the database.
+        // number, the comparison in ListConfirmedSlotsEndingAfterAsync runs in the database.
         configurationBuilder.Properties<DateTimeOffset>().HaveConversion<DateTimeOffsetToBinaryConverter>();
     }
 
@@ -23,6 +24,9 @@ public sealed class CourtBookingsDbContext(DbContextOptions<CourtBookingsDbConte
         modelBuilder.Entity<Booking>(booking =>
         {
             booking.HasKey(b => b.Id);
+            booking.Property(b => b.OwnerId)
+                .HasConversion(id => id.Value, value => UserId.Create(value))
+                .HasMaxLength(UserId.MaxLength);
             booking.HasOne<Court>().WithMany().HasForeignKey(b => b.CourtId);
             booking.ComplexProperty(b => b.Slot);
             booking.Property(b => b.Status).HasConversion<string>().HasMaxLength(StatusMaxLength);

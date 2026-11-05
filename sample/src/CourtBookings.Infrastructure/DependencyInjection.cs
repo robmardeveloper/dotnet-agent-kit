@@ -1,5 +1,7 @@
 using CourtBookings.Application.Bookings;
 using CourtBookings.Application.Courts;
+using CourtBookings.Application.Notifications;
+using CourtBookings.Infrastructure.Notifications;
 using CourtBookings.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +15,7 @@ public static class DependencyInjection
         services.AddDbContext<CourtBookingsDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<IBookingRepository, EfBookingRepository>();
         services.AddScoped<ICourtRepository, EfCourtRepository>();
+        services.AddSingleton<IEmailSender, LoggingEmailSender>();
         return services;
     }
 }

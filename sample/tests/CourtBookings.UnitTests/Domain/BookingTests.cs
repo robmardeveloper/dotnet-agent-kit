@@ -1,4 +1,5 @@
 using CourtBookings.Domain.Bookings;
+using CourtBookings.Domain.Users;
 using Xunit;
 
 namespace CourtBookings.UnitTests.Domain;
@@ -14,7 +15,7 @@ public sealed class BookingTests
     {
         var slot = TimeSlot.Create(Now.AddHours(1), OneHour);
 
-        var booking = Booking.Create(CourtId, slot, [], Now);
+        var booking = Booking.Create(TestUsers.Alice, CourtId, slot, [], Now);
 
         Assert.Equal(CourtId, booking.CourtId);
         Assert.Equal(slot, booking.Slot);
@@ -25,7 +26,7 @@ public sealed class BookingTests
     {
         var slot = TimeSlot.Create(Now.AddDays(7), OneHour);
 
-        var booking = Booking.Create(CourtId, slot, [], Now);
+        var booking = Booking.Create(TestUsers.Alice, CourtId, slot, [], Now);
 
         Assert.Equal(slot, booking.Slot);
     }
@@ -37,7 +38,7 @@ public sealed class BookingTests
     {
         var slot = TimeSlot.Create(Now.AddHours(hoursFromNow), OneHour);
 
-        var exception = Assert.Throws<BookingRuleException>(() => Booking.Create(CourtId, slot, [], Now));
+        var exception = Assert.Throws<BookingRuleException>(() => Booking.Create(TestUsers.Alice, CourtId, slot, [], Now));
 
         Assert.Equal(BookingError.StartsInThePast, exception.Error);
     }
@@ -47,7 +48,7 @@ public sealed class BookingTests
     {
         var slot = TimeSlot.Create(Now.AddDays(7).AddMinutes(30), OneHour);
 
-        var exception = Assert.Throws<BookingRuleException>(() => Booking.Create(CourtId, slot, [], Now));
+        var exception = Assert.Throws<BookingRuleException>(() => Booking.Create(TestUsers.Alice, CourtId, slot, [], Now));
 
         Assert.Equal(BookingError.TooFarAhead, exception.Error);
     }
@@ -58,7 +59,7 @@ public sealed class BookingTests
         var taken = TimeSlot.Create(Now.AddHours(1), TimeSpan.FromMinutes(90));
         var slot = TimeSlot.Create(Now.AddHours(2), OneHour);
 
-        var exception = Assert.Throws<BookingRuleException>(() => Booking.Create(CourtId, slot, [taken], Now));
+        var exception = Assert.Throws<BookingRuleException>(() => Booking.Create(TestUsers.Alice, CourtId, slot, [taken], Now));
 
         Assert.Equal(BookingError.SlotAlreadyTaken, exception.Error);
     }
@@ -112,6 +113,14 @@ public sealed class BookingTests
         Assert.Equal(BookingError.AlreadyCancelled, exception.Error);
     }
 
+    [Fact]
+    public void IsOwnedBy_TheUserWhoBookedIt_IsTrueAndForAnyoneElseFalse()
+    {
+        var booking = BookingStartingAt(Now.AddDays(3));
+
+        Assert.Equal((true, false), (booking.IsOwnedBy(UserId.Create("alice")), booking.IsOwnedBy(TestUsers.Bob)));
+    }
+
     private static Booking BookingStartingAt(DateTimeOffset start) =>
-        Booking.Create(CourtId, TimeSlot.Create(start, OneHour), [], Now);
+        Booking.Create(TestUsers.Alice, CourtId, TimeSlot.Create(start, OneHour), [], Now);
 }

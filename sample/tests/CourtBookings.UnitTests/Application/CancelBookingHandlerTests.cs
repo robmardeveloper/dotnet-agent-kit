@@ -18,14 +18,27 @@ public sealed class CancelBookingHandlerTests
     [Fact]
     public async Task HandleAsync_ExistingBooking_CancelsAndSavesIt()
     {
-        var booking = Booking.Create(CourtId, TimeSlot.Create(Now.AddDays(2), TimeSpan.FromMinutes(60)), [], Now);
+        var booking = Booking.Create(TestUsers.Alice, CourtId, TimeSlot.Create(Now.AddDays(2), TimeSpan.FromMinutes(60)), [], Now);
         bookings.Saved.Add(booking);
         var handler = CreateHandler();
 
-        await handler.HandleAsync(new CancelBookingCommand(booking.Id), TestContext.Current.CancellationToken);
+        await handler.HandleAsync(new CancelBookingCommand(TestUsers.Alice, booking.Id), TestContext.Current.CancellationToken);
 
         Assert.Equal(BookingStatus.Cancelled, booking.Status);
         Assert.Equal(1, bookings.UpdateCount);
+    }
+
+    [Fact]
+    public async Task HandleAsync_SomeoneElsesBooking_ThrowsBookingNotFoundAndLeavesItConfirmed()
+    {
+        var booking = Booking.Create(TestUsers.Alice, CourtId, TimeSlot.Create(Now.AddDays(2), TimeSpan.FromMinutes(60)), [], Now);
+        bookings.Saved.Add(booking);
+        var handler = CreateHandler();
+
+        var exception = await Assert.ThrowsAsync<BookingRuleException>(
+            () => handler.HandleAsync(new CancelBookingCommand(TestUsers.Bob, booking.Id), TestContext.Current.CancellationToken));
+
+        Assert.Equal((BookingError.BookingNotFound, BookingStatus.Confirmed, 0), (exception.Error, booking.Status, bookings.UpdateCount));
     }
 
     [Fact]
@@ -34,7 +47,7 @@ public sealed class CancelBookingHandlerTests
         var handler = CreateHandler();
 
         var exception = await Assert.ThrowsAsync<BookingRuleException>(
-            () => handler.HandleAsync(new CancelBookingCommand(UnknownBookingId), TestContext.Current.CancellationToken));
+            () => handler.HandleAsync(new CancelBookingCommand(TestUsers.Alice, UnknownBookingId), TestContext.Current.CancellationToken));
 
         Assert.Equal(BookingError.BookingNotFound, exception.Error);
     }

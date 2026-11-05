@@ -11,8 +11,13 @@ public sealed partial class CancelBookingHandler(
 {
     public async Task HandleAsync(CancelBookingCommand command, CancellationToken cancellationToken)
     {
-        var booking = await bookings.GetByIdAsync(command.BookingId, cancellationToken)
-            ?? throw new BookingRuleException(BookingError.BookingNotFound);
+        var booking = await bookings.GetByIdAsync(command.BookingId, cancellationToken);
+
+        // Someone else's booking gets the same answer as a missing one, so its existence is not revealed (SEC-4).
+        if (booking is null || !booking.IsOwnedBy(command.UserId))
+        {
+            throw new BookingRuleException(BookingError.BookingNotFound);
+        }
 
         booking.Cancel(timeProvider.GetUtcNow());
         await bookings.UpdateAsync(booking, cancellationToken);

@@ -1,4 +1,5 @@
 using CourtBookings.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -12,7 +13,8 @@ namespace CourtBookings.IntegrationTests;
 
 /// <summary>
 /// Runs the real API, replacing only what is external (TEST-5): the database becomes SQLite in
-/// memory and the clock becomes a <see cref="FakeTimeProvider"/>.
+/// memory, the clock becomes a <see cref="FakeTimeProvider"/> and the user comes from
+/// <see cref="TestAuthHandler"/> instead of a signed token.
 /// </summary>
 public sealed class CourtBookingsApiFactory : WebApplicationFactory<Program>
 {
@@ -32,8 +34,26 @@ public sealed class CourtBookingsApiFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(new FakeTimeProvider(Now));
+
+            services.AddAuthentication(TestAuthHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, null);
         });
     }
+
+    /// <summary>A client that calls the API as <paramref name="userId"/>, whose token carries <paramref name="email"/> if given.</summary>
+    public HttpClient CreateClientFor(string userId, string? email = null)
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserHeader, userId);
+        if (email is not null)
+        {
+            client.DefaultRequestHeaders.Add(TestAuthHandler.EmailHeader, email);
+        }
+
+        return client;
+    }
+
+    public HttpClient CreateClientForAlice() => CreateClientFor("alice", "alice@example.com");
 
     public override async ValueTask DisposeAsync()
     {
