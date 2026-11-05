@@ -28,9 +28,9 @@
 - Why: if callers must check the concrete type, the abstraction is a lie and every caller pays for it.
 - Based on: the Liskov Substitution Principle, Barbara Liskov, "Data Abstraction and Hierarchy" (1988). Martin, *Clean Architecture*, ch. 9. The "demand more, guarantee less" test comes from Bertrand Meyer's Design by Contract.
 
-**SOLID-4** Keep interfaces small and shaped by their consumers: no consumer depends on members it does not call.
-- Why: a fat interface couples unrelated consumers and forces implementations to fake members they do not need.
-- Based on: the Interface Segregation Principle. Martin, *Clean Architecture*, ch. 10.
+**SOLID-4** Keep interfaces small and shaped by their consumers: no consumer depends on members it does not call. A repository is the exception: one per aggregate (DOM-4), with only the operations its use cases need.
+- Why: a fat interface couples unrelated consumers and forces implementations to fake members they do not need. Splitting a repository into one interface per use case would scatter one aggregate's persistence for no gain.
+- Based on: the Interface Segregation Principle. Martin, *Clean Architecture*, ch. 10. The repository exception follows Evans, *Domain-Driven Design*, ch. 6 (Repositories, one per aggregate root).
 
 **SOLID-5** Make source code depend on abstractions, never on volatile concrete classes; stable platform types (`string`, `DateOnly`, collections) are the exception.
 - Why: concrete code under active development changes often; interfaces change rarely, so depending on them keeps changes local.
