@@ -30,4 +30,13 @@
   <data name="SlotAlreadyTaken" xml:space="preserve">
     <value>La pista ya está reservada a esa hora.</value>
   </data>
+  <data name="BookingNotFound" xml:space="preserve">
+    <value>Esa reserva no existe.</value>
+  </data>
+  <data name="AlreadyCancelled" xml:space="preserve">
+    <value>Esa reserva ya está cancelada.</value>
+  </data>
+  <data name="AlreadyStarted" xml:space="preserve">
+    <value>Una reserva no se puede cancelar cuando ya ha empezado.</value>
+  </data>
 </root>

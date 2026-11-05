@@ -30,4 +30,13 @@
   <data name="SlotAlreadyTaken" xml:space="preserve">
     <value>The court is already booked at that time.</value>
   </data>
+  <data name="BookingNotFound" xml:space="preserve">
+    <value>That booking does not exist.</value>
+  </data>
+  <data name="AlreadyCancelled" xml:space="preserve">
+    <value>That booking is already cancelled.</value>
+  </data>
+  <data name="AlreadyStarted" xml:space="preserve">
+    <value>A booking cannot be cancelled once it has started.</value>
+  </data>
 </root>

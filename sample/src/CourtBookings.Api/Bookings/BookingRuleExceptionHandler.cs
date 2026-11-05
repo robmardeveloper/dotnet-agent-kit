@@ -33,8 +33,8 @@ internal sealed class BookingRuleExceptionHandler(
 
     private static int StatusCodeFor(BookingError error) => error switch
     {
-        BookingError.CourtNotFound => StatusCodes.Status404NotFound,
-        BookingError.SlotAlreadyTaken => StatusCodes.Status409Conflict,
+        BookingError.CourtNotFound or BookingError.BookingNotFound => StatusCodes.Status404NotFound,
+        BookingError.SlotAlreadyTaken or BookingError.AlreadyCancelled or BookingError.AlreadyStarted => StatusCodes.Status409Conflict,
         _ => StatusCodes.Status400BadRequest,
     };
 }

@@ -26,6 +26,27 @@ public sealed class BookCourtEndpointTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task PostBookings_FreeSlot_LocationLeadsToTheConfirmedBooking()
+    {
+        var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(BookingsUrl, new BookCourtRequest(1, TenOClock, 90), TestContext.Current.CancellationToken);
+
+        var details = await client.GetFromJsonAsync<BookingDetailsResponse>(response.Headers.Location, TestContext.Current.CancellationToken);
+        Assert.Equal(new BookingDetailsResponse(1, 1, TenOClock, TenOClock.AddMinutes(90), "Confirmed", false), details);
+    }
+
+    [Fact]
+    public async Task GetBooking_UnknownBooking_Returns404()
+    {
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"{BookingsUrl}/99", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task PostBookings_SlotAlreadyTaken_Returns409()
     {
         var client = factory.CreateClient();

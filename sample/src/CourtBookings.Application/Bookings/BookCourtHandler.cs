@@ -20,7 +20,7 @@ public sealed partial class BookCourtHandler(
 
         var slot = TimeSlot.Create(command.Start, command.Duration);
         var now = timeProvider.GetUtcNow();
-        var takenSlots = await bookings.ListSlotsEndingAfterAsync(command.CourtId, now, cancellationToken);
+        var takenSlots = await bookings.ListConfirmedSlotsEndingAfterAsync(command.CourtId, now, cancellationToken);
 
         var booking = Booking.Create(command.CourtId, slot, takenSlots, now);
         await bookings.AddAsync(booking, cancellationToken);

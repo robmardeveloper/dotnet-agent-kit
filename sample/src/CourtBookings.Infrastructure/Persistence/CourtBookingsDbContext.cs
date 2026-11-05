@@ -25,6 +25,7 @@ public sealed class CourtBookingsDbContext(DbContextOptions<CourtBookingsDbConte
             booking.HasKey(b => b.Id);
             booking.HasOne<Court>().WithMany().HasForeignKey(b => b.CourtId);
             booking.ComplexProperty(b => b.Slot);
+            booking.Property(b => b.Status).HasConversion<string>().HasMaxLength(StatusMaxLength);
         });
 
         modelBuilder.Entity<Court>(court =>
@@ -37,4 +38,5 @@ public sealed class CourtBookingsDbContext(DbContextOptions<CourtBookingsDbConte
     }
 
     private const int CourtNameMaxLength = 50;
+    private const int StatusMaxLength = 20;
 }

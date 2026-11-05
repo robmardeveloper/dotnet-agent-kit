@@ -62,4 +62,56 @@ public sealed class BookingTests
 
         Assert.Equal(BookingError.SlotAlreadyTaken, exception.Error);
     }
+
+    [Theory]
+    [InlineData(48)]
+    [InlineData(24)]
+    public void Cancel_AtLeast24HoursBefore_CancelsWithoutPenalty(int hoursBeforeStart)
+    {
+        var booking = BookingStartingAt(Now.AddDays(3));
+
+        booking.Cancel(booking.Slot.Start.AddHours(-hoursBeforeStart));
+
+        Assert.Equal(BookingStatus.Cancelled, booking.Status);
+        Assert.False(booking.HasCancellationPenalty);
+    }
+
+    [Theory]
+    [InlineData(23.5)]
+    [InlineData(0.5)]
+    public void Cancel_LessThan24HoursBefore_ChargesPenalty(double hoursBeforeStart)
+    {
+        var booking = BookingStartingAt(Now.AddDays(3));
+
+        booking.Cancel(booking.Slot.Start.AddHours(-hoursBeforeStart));
+
+        Assert.Equal(BookingStatus.Cancelled, booking.Status);
+        Assert.True(booking.HasCancellationPenalty);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(30)]
+    public void Cancel_BookingAlreadyStarted_ThrowsAlreadyStarted(int minutesAfterStart)
+    {
+        var booking = BookingStartingAt(Now.AddDays(3));
+
+        var exception = Assert.Throws<BookingRuleException>(() => booking.Cancel(booking.Slot.Start.AddMinutes(minutesAfterStart)));
+
+        Assert.Equal(BookingError.AlreadyStarted, exception.Error);
+    }
+
+    [Fact]
+    public void Cancel_AlreadyCancelled_ThrowsAlreadyCancelled()
+    {
+        var booking = BookingStartingAt(Now.AddDays(3));
+        booking.Cancel(Now);
+
+        var exception = Assert.Throws<BookingRuleException>(() => booking.Cancel(Now));
+
+        Assert.Equal(BookingError.AlreadyCancelled, exception.Error);
+    }
+
+    private static Booking BookingStartingAt(DateTimeOffset start) =>
+        Booking.Create(CourtId, TimeSlot.Create(start, OneHour), [], Now);
 }

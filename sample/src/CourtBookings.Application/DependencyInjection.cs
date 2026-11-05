@@ -8,6 +8,8 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<BookCourtHandler>();
+        services.AddScoped<CancelBookingHandler>();
+        services.AddScoped<GetBookingHandler>();
         return services;
     }
 }

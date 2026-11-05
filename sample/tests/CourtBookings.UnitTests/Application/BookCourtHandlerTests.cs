@@ -55,6 +55,19 @@ public sealed class BookCourtHandlerTests
         Assert.Equal(BookingError.SlotAlreadyTaken, exception.Error);
     }
 
+    [Fact]
+    public async Task HandleAsync_SlotOfACancelledBooking_BooksIt()
+    {
+        var cancelled = Booking.Create(CourtId, TimeSlot.Create(Now.AddHours(1), OneHour), [], Now);
+        cancelled.Cancel(Now);
+        bookings.Saved.Add(cancelled);
+        var handler = CreateHandler(new InMemoryCourtRepository(CourtId));
+
+        await handler.HandleAsync(new BookCourtCommand(CourtId, Now.AddHours(1), OneHour), TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, bookings.Saved.Count);
+    }
+
     private BookCourtHandler CreateHandler(InMemoryCourtRepository courts) =>
         new(courts, bookings, timeProvider, NullLogger<BookCourtHandler>.Instance);
 }
