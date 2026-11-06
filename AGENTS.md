@@ -250,8 +250,8 @@
 - Why: when the client gives up, the work it started (queries, HTTP calls) stops too instead of running for nobody.
 - Based on: Microsoft Learn, *Task-based Asynchronous Pattern (TAP)* ("Cancellation"); *CA2016: Forward the CancellationToken parameter to methods that take one*; *Parameter binding in Minimal API apps* (`CancellationToken` is bound to `HttpContext.RequestAborted`).
 
-**ASYNC-3** End the name of every method that returns `Task`, `Task<T>`, `ValueTask` or `ValueTask<T>` with `Async`, and never add `Async` to a synchronous method. Endpoint handlers are the exception.
-- Why: the caller sees from the name alone that it has to `await` the call.
+**ASYNC-3** End the name of every method that returns `Task`, `Task<T>`, `ValueTask` or `ValueTask<T>` with `Async`, and never add `Async` to a synchronous method. Endpoint handlers and test methods are the exception: no code of yours calls them, and test names follow TEST-2.
+- Why: the caller sees from the name alone that it has to `await` the call; a method nobody calls has no caller to warn.
 - Based on: Microsoft Learn, *Task-based Asynchronous Pattern (TAP)* ("Naming, parameters, and return types").
 
 ---
