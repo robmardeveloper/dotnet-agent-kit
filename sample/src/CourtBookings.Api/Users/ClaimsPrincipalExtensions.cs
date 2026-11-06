@@ -12,7 +12,7 @@ public static class ClaimsPrincipalExtensions
         UserId.Create(user.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? throw new InvalidOperationException("The authenticated user has no subject claim."));
 
-    // Only called on endpoints with the RequiresEmail policy, which checks the claim is there.
+    // Only called on endpoints with the RequiresEmail policy, which checks the claim is there and valid.
     public static EmailAddress GetEmail(this ClaimsPrincipal user) =>
         EmailAddress.Create(user.FindFirstValue(ClaimTypes.Email)
             ?? throw new InvalidOperationException("The authenticated user has no email claim."));

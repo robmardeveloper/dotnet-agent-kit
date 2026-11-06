@@ -3,6 +3,7 @@ using System.Security.Claims;
 using CourtBookings.Api.Bookings;
 using CourtBookings.Api.Users;
 using CourtBookings.Application;
+using CourtBookings.Domain.Users;
 using CourtBookings.Infrastructure;
 
 // Composition root (DI-5): the only place that knows every layer.
@@ -20,7 +21,8 @@ builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddAuthentication().AddJwtBearer();
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
-    .AddPolicy(UserPolicies.RequiresEmail, policy => policy.RequireClaim(ClaimTypes.Email));
+    .AddPolicy(UserPolicies.RequiresEmail, policy => policy.RequireAssertion(
+        context => EmailAddress.TryCreate(context.User.FindFirstValue(ClaimTypes.Email), out _)));
 
 builder.Services.AddLocalization();
 builder.Services.AddValidation();

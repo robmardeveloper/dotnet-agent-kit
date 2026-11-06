@@ -26,10 +26,12 @@ public sealed class AuthorizationEndpointTests : IAsyncDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Fact]
-    public async Task PostBookings_UserWithoutEmail_Returns403()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("not an email")]
+    public async Task PostBookings_UserWithoutAValidEmail_Returns403(string? email)
     {
-        var client = factory.CreateClientFor("carol");
+        var client = factory.CreateClientFor("carol", email);
 
         var response = await client.PostAsJsonAsync("/bookings", TomorrowAtTen, TestContext.Current.CancellationToken);
 

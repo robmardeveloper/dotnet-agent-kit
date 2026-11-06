@@ -114,11 +114,23 @@ public sealed class BookingTests
     }
 
     [Fact]
-    public void IsOwnedBy_TheUserWhoBookedIt_IsTrueAndForAnyoneElseFalse()
+    public void IsOwnedBy_TheUserWhoBookedIt_ReturnsTrue()
     {
         var booking = BookingStartingAt(Now.AddDays(3));
 
-        Assert.Equal((true, false), (booking.IsOwnedBy(UserId.Create("alice")), booking.IsOwnedBy(TestUsers.Bob)));
+        var isOwned = booking.IsOwnedBy(UserId.Create("alice"));
+
+        Assert.True(isOwned);
+    }
+
+    [Fact]
+    public void IsOwnedBy_AnotherUser_ReturnsFalse()
+    {
+        var booking = BookingStartingAt(Now.AddDays(3));
+
+        var isOwned = booking.IsOwnedBy(TestUsers.Bob);
+
+        Assert.False(isOwned);
     }
 
     private static Booking BookingStartingAt(DateTimeOffset start) =>
