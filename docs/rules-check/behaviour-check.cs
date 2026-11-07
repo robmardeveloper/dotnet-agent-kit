@@ -14,7 +14,7 @@ var results = new List<(string Case, bool Passed, string Detail)>();
 await Run("1. Borrow an available book: 201, with the book and a due date 14 days ahead", async () =>
 {
     var before = DateTimeOffset.UtcNow;
-    var (status, loan) = await Borrow("c1", 1);
+    var (status, loan) = await Borrow("101", 1);
     Expect(status == HttpStatusCode.Created, $"status {status}");
     Expect(loan is not null && loan.BookId == 1, "the response does not give book 1");
     var expected = before.AddDays(14);
@@ -23,68 +23,68 @@ await Run("1. Borrow an available book: 201, with the book and a due date 14 day
 
 await Run("2. Borrow a book another member has: 409", async () =>
 {
-    Expect((await Borrow("c2a", 2)).Status == HttpStatusCode.Created, "the first loan was not created");
-    var (status, _) = await Borrow("c2b", 2);
+    Expect((await Borrow("201", 2)).Status == HttpStatusCode.Created, "the first loan was not created");
+    var (status, _) = await Borrow("202", 2);
     Expect(status == HttpStatusCode.Conflict, $"status {status}");
 });
 
 await Run("3. A fourth active loan: 409; after a return, the member can borrow again", async () =>
 {
-    var (_, first) = await Borrow("c3", 3);
-    await Borrow("c3", 4);
-    await Borrow("c3", 5);
-    var (fourth, _) = await Borrow("c3", 6);
+    var (_, first) = await Borrow("301", 3);
+    await Borrow("301", 4);
+    await Borrow("301", 5);
+    var (fourth, _) = await Borrow("301", 6);
     Expect(fourth == HttpStatusCode.Conflict, $"fourth loan: status {fourth}");
     Expect(first is not null, "the first loan was not created");
-    var returned = await Return("c3", first!.Id);
+    var returned = await Return("301", first!.Id);
     Expect(returned == HttpStatusCode.NoContent, $"return: status {returned}");
-    var (again, _) = await Borrow("c3", 6);
+    var (again, _) = await Borrow("301", 6);
     Expect(again == HttpStatusCode.Created, $"loan after the return: status {again}");
 });
 
 await Run("4. Borrow a book that does not exist: 404", async () =>
 {
-    var (status, _) = await Borrow("c4", 999);
+    var (status, _) = await Borrow("401", 999);
     Expect(status == HttpStatusCode.NotFound, $"status {status}");
 });
 
 await Run("5. Return your own loan: 204, and the book can be borrowed again", async () =>
 {
-    var (_, loan) = await Borrow("c5a", 7);
+    var (_, loan) = await Borrow("501", 7);
     Expect(loan is not null, "the loan was not created");
-    var returned = await Return("c5a", loan!.Id);
+    var returned = await Return("501", loan!.Id);
     Expect(returned == HttpStatusCode.NoContent, $"return: status {returned}");
-    var (again, _) = await Borrow("c5b", 7);
+    var (again, _) = await Borrow("502", 7);
     Expect(again == HttpStatusCode.Created, $"loan by another member: status {again}");
 });
 
 await Run("6. Return someone else's loan: 404, and the loan stays active", async () =>
 {
-    var (_, loan) = await Borrow("c6a", 8);
+    var (_, loan) = await Borrow("601", 8);
     Expect(loan is not null, "the loan was not created");
-    var returned = await Return("c6b", loan!.Id);
+    var returned = await Return("602", loan!.Id);
     Expect(returned == HttpStatusCode.NotFound, $"return by another member: status {returned}");
-    var (_, loans) = await List("c6a");
+    var (_, loans) = await List("601");
     Expect(loans is not null && loans.Any(l => l.Id == loan.Id), "the loan is no longer in the owner's list");
 });
 
 await Run("7. Return a loan twice: the second time 409", async () =>
 {
-    var (_, loan) = await Borrow("c7", 9);
+    var (_, loan) = await Borrow("701", 9);
     Expect(loan is not null, "the loan was not created");
-    await Return("c7", loan!.Id);
-    var second = await Return("c7", loan.Id);
+    await Return("701", loan!.Id);
+    var second = await Return("701", loan.Id);
     Expect(second == HttpStatusCode.Conflict, $"second return: status {second}");
 });
 
 await Run("8. The list has only the member's own active loans", async () =>
 {
-    var (_, kept) = await Borrow("c8", 10);
-    var (_, returnedLoan) = await Borrow("c8", 11);
-    await Borrow("c8x", 12);
+    var (_, kept) = await Borrow("801", 10);
+    var (_, returnedLoan) = await Borrow("801", 11);
+    await Borrow("802", 12);
     Expect(kept is not null && returnedLoan is not null, "the loans were not created");
-    await Return("c8", returnedLoan!.Id);
-    var (status, loans) = await List("c8");
+    await Return("801", returnedLoan!.Id);
+    var (status, loans) = await List("801");
     Expect(status == HttpStatusCode.OK, $"status {status}");
     var ids = loans?.Select(l => l.Id).ToList() ?? [];
     Expect(ids.Count == 1 && ids[0] == kept!.Id, $"got loans [{string.Join(", ", ids)}], expected [{kept!.Id}]");
@@ -92,7 +92,7 @@ await Run("8. The list has only the member's own active loans", async () =>
 
 await Run("9. Without a member: 401 on the three endpoints", async () =>
 {
-    var (_, loan) = await Borrow("c9", 13);
+    var (_, loan) = await Borrow("901", 13);
     Expect(loan is not null, "the loan was not created");
     var borrow = (await Send(HttpMethod.Post, "/loans", null, new { bookId = 14 })).StatusCode;
     var list = (await Send(HttpMethod.Get, "/loans", null)).StatusCode;
@@ -105,9 +105,9 @@ await Run("9. Without a member: 401 on the three endpoints", async () =>
 
 await Run("10. A missing or non-positive book ID: 400", async () =>
 {
-    var missing = (await Send(HttpMethod.Post, "/loans", "c10", new { })).StatusCode;
-    var zero = (await Send(HttpMethod.Post, "/loans", "c10", new { bookId = 0 })).StatusCode;
-    var negative = (await Send(HttpMethod.Post, "/loans", "c10", new { bookId = -1 })).StatusCode;
+    var missing = (await Send(HttpMethod.Post, "/loans", "1001", new { })).StatusCode;
+    var zero = (await Send(HttpMethod.Post, "/loans", "1001", new { bookId = 0 })).StatusCode;
+    var negative = (await Send(HttpMethod.Post, "/loans", "1001", new { bookId = -1 })).StatusCode;
     Expect(
         (missing, zero, negative) == (HttpStatusCode.BadRequest, HttpStatusCode.BadRequest, HttpStatusCode.BadRequest),
         $"missing {missing}, zero {zero}, negative {negative}");

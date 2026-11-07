@@ -181,6 +181,18 @@ The real cost of each session is written in the results.
 - **The task text already asks for some good practice** (authentication in a scheme, status codes), on both sides.
   This makes the behaviour check possible, and it means the check measures what the rules add on top of a clear task.
 
+## Changes to the design
+
+- **2026-11-07, after the two dry runs, before any counted run: the behaviour check now sends integer member IDs.**
+  It sent member IDs such as `c1`. The task says "All IDs are integers", so both dry runs accepted only positive
+  integers in `X-Member-Id` and answered 401 to everything: 0 of 10 on both sides, a bug in the check, not in the
+  results. The member IDs are now `101`, `201` and so on; nothing else changed. With the fix both dry runs pass 10
+  of 10, the throwaway correct implementation still passes 10 of 10, and the broken one still fails exactly cases
+  3 and 6. The task text did not change.
+- **Discarded dry run:** the first attempt at dry run B was started by mistake in the folder above the run folders.
+  It was stopped after three commands, all of them reads (it listed the folders and read the task file); it wrote
+  nothing. It was run again in its own folder.
+
 ## Files
 
 - [`rules-check/behaviour-check.cs`](rules-check/behaviour-check.cs): the behaviour cases, run unchanged on every
