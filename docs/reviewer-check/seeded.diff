@@ -1,0 +1,282 @@
+diff --git a/sample/src/CourtBookings.Api/Bookings/BookingEndpoints.cs b/sample/src/CourtBookings.Api/Bookings/BookingEndpoints.cs
+index 677d221..3303cee 100644
+--- a/sample/src/CourtBookings.Api/Bookings/BookingEndpoints.cs
++++ b/sample/src/CourtBookings.Api/Bookings/BookingEndpoints.cs
+@@ -1,6 +1,8 @@
+ using System.Security.Claims;
+ using CourtBookings.Api.Users;
+ using CourtBookings.Application.Bookings;
++using CourtBookings.Domain.Bookings;
++using CourtBookings.Domain.Users;
+ using Microsoft.AspNetCore.Http.HttpResults;
+ 
+ namespace CourtBookings.Api.Bookings;
+@@ -18,6 +20,7 @@ public static class BookingEndpoints
+         endpoints.MapPost("/bookings", BookCourt).RequireAuthorization(UserPolicies.RequiresEmail);
+         endpoints.MapGet("/bookings/{id:int}", GetBooking).WithName(GetBookingRoute);
+         endpoints.MapPost("/bookings/{id:int}/cancel", CancelBooking);
++        endpoints.MapGet("/users/{userId}/bookings", ListUpcomingBookings);
+         return endpoints;
+     }
+ 
+@@ -47,4 +50,27 @@ public static class BookingEndpoints
+         await handler.HandleAsync(new CancelBookingCommand(user.GetUserId(), id), cancellationToken);
+         return TypedResults.NoContent();
+     }
++
++    private static async Task<Results<Ok<List<UpcomingBookingResponse>>, BadRequest>> ListUpcomingBookings(
++        string userId,
++        int? days,
++        ClaimsPrincipal user,
++        ListUpcomingBookingsHandler handler,
++        TimeProvider timeProvider,
++        CancellationToken cancellationToken)
++    {
++        if (days is < 1 || days > Booking.MaxBookingAhead.Days)
++        {
++            return TypedResults.BadRequest();
++        }
++
++        var query = new ListUpcomingBookingsQuery(UserId.Create(userId), user.FindFirstValue(ClaimTypes.Email), days);
++        var upcoming = await handler.HandleAsync(query, cancellationToken);
++
++        var now = timeProvider.GetUtcNow();
++        return TypedResults.Ok(upcoming
++            .Select(b => new UpcomingBookingResponse(
++                b.BookingId, b.CourtId, b.Start, b.End, CanCancelForFree: b.Start - now >= TimeSpan.FromHours(24)))
++            .ToList());
++    }
+ }
+diff --git a/sample/src/CourtBookings.Api/Bookings/UpcomingBookingResponse.cs b/sample/src/CourtBookings.Api/Bookings/UpcomingBookingResponse.cs
+new file mode 100644
+index 0000000..1c01d29
+--- /dev/null
++++ b/sample/src/CourtBookings.Api/Bookings/UpcomingBookingResponse.cs
+@@ -0,0 +1,3 @@
++namespace CourtBookings.Api.Bookings;
++
++public sealed record UpcomingBookingResponse(int Id, int CourtId, DateTimeOffset Start, DateTimeOffset End, bool CanCancelForFree);
+diff --git a/sample/src/CourtBookings.Api/appsettings.json b/sample/src/CourtBookings.Api/appsettings.json
+index 96392b2..26b0fcf 100644
+--- a/sample/src/CourtBookings.Api/appsettings.json
++++ b/sample/src/CourtBookings.Api/appsettings.json
+@@ -8,5 +8,10 @@
+       "Microsoft.AspNetCore": "Warning"
+     }
+   },
++  "Email": {
++    "SmtpHost": "smtp.example.com",
++    "SmtpUser": "bookings@example.com",
++    "SmtpPassword": "Pista-2026-Smtp!"
++  },
+   "AllowedHosts": "*"
+ }
+diff --git a/sample/src/CourtBookings.Application/Bookings/IBookingRepository.cs b/sample/src/CourtBookings.Application/Bookings/IBookingRepository.cs
+index 083589d..5cd6316 100644
+--- a/sample/src/CourtBookings.Application/Bookings/IBookingRepository.cs
++++ b/sample/src/CourtBookings.Application/Bookings/IBookingRepository.cs
+@@ -1,4 +1,5 @@
+ using CourtBookings.Domain.Bookings;
++using CourtBookings.Domain.Users;
+ 
+ namespace CourtBookings.Application.Bookings;
+ 
+@@ -10,6 +11,8 @@ public interface IBookingRepository
+     /// <summary>The slots of a court's confirmed bookings that have not ended by <paramref name="instant"/>.</summary>
+     Task<IReadOnlyList<TimeSlot>> ListConfirmedSlotsEndingAfterAsync(int courtId, DateTimeOffset instant, CancellationToken cancellationToken);
+ 
++    Task<IReadOnlyList<Booking>> ListOwnedByAsync(UserId ownerId);
++
+     Task AddAsync(Booking booking, CancellationToken cancellationToken);
+ 
+     Task UpdateAsync(Booking booking, CancellationToken cancellationToken);
+diff --git a/sample/src/CourtBookings.Application/Bookings/ListUpcomingBookingsHandler.cs b/sample/src/CourtBookings.Application/Bookings/ListUpcomingBookingsHandler.cs
+new file mode 100644
+index 0000000..6e37060
+--- /dev/null
++++ b/sample/src/CourtBookings.Application/Bookings/ListUpcomingBookingsHandler.cs
+@@ -0,0 +1,38 @@
++using Microsoft.Extensions.Logging;
++
++namespace CourtBookings.Application.Bookings;
++
++/// <summary>Lists a user's confirmed bookings that have not started yet, soonest first.</summary>
++public sealed partial class ListUpcomingBookingsHandler(
++    IBookingRepository bookings,
++    TimeProvider timeProvider,
++    ILogger<ListUpcomingBookingsHandler> logger)
++{
++    public Task<IReadOnlyList<UpcomingBooking>> HandleAsync(ListUpcomingBookingsQuery query, CancellationToken cancellationToken)
++    {
++        var until = timeProvider.GetUtcNow().AddDays(query.Days ?? 7);
++        var owned = bookings.ListOwnedByAsync(query.UserId).Result;
++
++        Console.WriteLine("Listing upcoming bookings for " + query.UserId);
++
++        IReadOnlyList<UpcomingBooking> upcoming =
++        [
++            .. owned
++                .Where(b => b.IsUpcoming() && b.Slot.Start <= until)
++                .OrderBy(b => b.Slot.Start)
++                .Select(b => new UpcomingBooking(b.Id, b.CourtId, b.Slot.Start, b.Slot.End)),
++        ];
++
++        var email = query.RequestedByEmail!;
++        LogUpcomingBookingsListed(upcoming.Count, query.UserId.Value);
++        LogListRequestedBy(email);
++
++        return Task.FromResult(upcoming);
++    }
++
++    [LoggerMessage(Level = LogLevel.Information, Message = "{Count} upcoming bookings listed for user {UserId}")]
++    private partial void LogUpcomingBookingsListed(int count, string userId);
++
++    [LoggerMessage(Level = LogLevel.Information, Message = "Upcoming bookings requested by {Email}")]
++    private partial void LogListRequestedBy(string email);
++}
+diff --git a/sample/src/CourtBookings.Application/Bookings/ListUpcomingBookingsQuery.cs b/sample/src/CourtBookings.Application/Bookings/ListUpcomingBookingsQuery.cs
+new file mode 100644
+index 0000000..93f12c9
+--- /dev/null
++++ b/sample/src/CourtBookings.Application/Bookings/ListUpcomingBookingsQuery.cs
+@@ -0,0 +1,5 @@
++using CourtBookings.Domain.Users;
++
++namespace CourtBookings.Application.Bookings;
++
++public sealed record ListUpcomingBookingsQuery(UserId UserId, string? RequestedByEmail, int? Days);
+diff --git a/sample/src/CourtBookings.Application/Bookings/UpcomingBooking.cs b/sample/src/CourtBookings.Application/Bookings/UpcomingBooking.cs
+new file mode 100644
+index 0000000..0475567
+--- /dev/null
++++ b/sample/src/CourtBookings.Application/Bookings/UpcomingBooking.cs
+@@ -0,0 +1,3 @@
++namespace CourtBookings.Application.Bookings;
++
++public sealed record UpcomingBooking(int BookingId, int CourtId, DateTimeOffset Start, DateTimeOffset End);
+diff --git a/sample/src/CourtBookings.Application/DependencyInjection.cs b/sample/src/CourtBookings.Application/DependencyInjection.cs
+index 93a6f72..2abd374 100644
+--- a/sample/src/CourtBookings.Application/DependencyInjection.cs
++++ b/sample/src/CourtBookings.Application/DependencyInjection.cs
+@@ -10,6 +10,7 @@ public static class DependencyInjection
+         services.AddScoped<BookCourtHandler>();
+         services.AddScoped<CancelBookingHandler>();
+         services.AddScoped<GetBookingHandler>();
++        services.AddScoped<ListUpcomingBookingsHandler>();
+         return services;
+     }
+ }
+diff --git a/sample/src/CourtBookings.Domain/Bookings/Booking.cs b/sample/src/CourtBookings.Domain/Bookings/Booking.cs
+index 994c976..20c27b6 100644
+--- a/sample/src/CourtBookings.Domain/Bookings/Booking.cs
++++ b/sample/src/CourtBookings.Domain/Bookings/Booking.cs
+@@ -60,6 +60,8 @@ public sealed class Booking
+ 
+     public bool IsOwnedBy(UserId userId) => OwnerId == userId;
+ 
++    public bool IsUpcoming() => Status == BookingStatus.Confirmed && Slot.Start > DateTimeOffset.UtcNow;
++
+     /// <summary>
+     /// Cancels the booking: free until <see cref="FreeCancellationNotice"/> before it starts,
+     /// with a penalty after that, and not possible once it has started.
+diff --git a/sample/src/CourtBookings.Infrastructure/Persistence/EfBookingRepository.cs b/sample/src/CourtBookings.Infrastructure/Persistence/EfBookingRepository.cs
+index 090d847..0555605 100644
+--- a/sample/src/CourtBookings.Infrastructure/Persistence/EfBookingRepository.cs
++++ b/sample/src/CourtBookings.Infrastructure/Persistence/EfBookingRepository.cs
+@@ -1,5 +1,6 @@
+ using CourtBookings.Application.Bookings;
+ using CourtBookings.Domain.Bookings;
++using CourtBookings.Domain.Users;
+ using Microsoft.EntityFrameworkCore;
+ 
+ namespace CourtBookings.Infrastructure.Persistence;
+@@ -16,6 +17,14 @@ internal sealed class EfBookingRepository(CourtBookingsDbContext dbContext) : IB
+             .Select(b => b.Slot)
+             .ToListAsync(cancellationToken);
+ 
++    public async Task<IReadOnlyList<Booking>> ListOwnedByAsync(UserId ownerId) =>
++        await dbContext.Bookings
++            .FromSqlRaw("SELECT * FROM Bookings WHERE OwnerId = '" + ownerId.Value + "'")
++            .ToListAsync();
++
++    // public async Task<IReadOnlyList<Booking>> ListOwnedByAsync(UserId ownerId) =>
++    //     await dbContext.Bookings.Where(b => b.OwnerId == ownerId).ToListAsync();
++
+     public async Task AddAsync(Booking booking, CancellationToken cancellationToken)
+     {
+         dbContext.Bookings.Add(booking);
+diff --git a/sample/tests/CourtBookings.IntegrationTests/ListUpcomingBookingsEndpointTests.cs b/sample/tests/CourtBookings.IntegrationTests/ListUpcomingBookingsEndpointTests.cs
+new file mode 100644
+index 0000000..84ca480
+--- /dev/null
++++ b/sample/tests/CourtBookings.IntegrationTests/ListUpcomingBookingsEndpointTests.cs
+@@ -0,0 +1,49 @@
++using System.Net.Http.Json;
++using CourtBookings.Api.Bookings;
++using Xunit;
++
++namespace CourtBookings.IntegrationTests;
++
++public sealed class ListUpcomingBookingsEndpointTests : IAsyncDisposable
++{
++    private const int CourtId = 1;
++    private const int OneHour = 60;
++    private static readonly DateTimeOffset InTwoDays = CourtBookingsApiFactory.Now.AddDays(2);
++    private static readonly DateTimeOffset InThreeDays = CourtBookingsApiFactory.Now.AddDays(3);
++
++    private readonly CourtBookingsApiFactory factory = new();
++    private readonly HttpClient client;
++
++    public ListUpcomingBookingsEndpointTests()
++    {
++        client = factory.CreateClientForAlice();
++    }
++
++    [Fact]
++    public async Task Test1()
++    {
++        await BookAsync(InTwoDays);
++        await BookAsync(InThreeDays);
++
++        var bookings = await client.GetFromJsonAsync<List<UpcomingBookingResponse>>(
++            "/users/alice/bookings", TestContext.Current.CancellationToken) ?? [];
++
++        foreach (var booking in bookings)
++        {
++            Assert.True(booking.CanCancelForFree);
++        }
++    }
++
++    public async ValueTask DisposeAsync()
++    {
++        client.Dispose();
++        await factory.DisposeAsync();
++    }
++
++    private async Task BookAsync(DateTimeOffset start)
++    {
++        var response = await client.PostAsJsonAsync(
++            "/bookings", new BookCourtRequest(CourtId, start, OneHour), TestContext.Current.CancellationToken);
++        response.EnsureSuccessStatusCode();
++    }
++}
+diff --git a/sample/tests/CourtBookings.UnitTests/Application/InMemoryBookingRepository.cs b/sample/tests/CourtBookings.UnitTests/Application/InMemoryBookingRepository.cs
+index 5fd347a..87c97eb 100644
+--- a/sample/tests/CourtBookings.UnitTests/Application/InMemoryBookingRepository.cs
++++ b/sample/tests/CourtBookings.UnitTests/Application/InMemoryBookingRepository.cs
+@@ -1,5 +1,6 @@
+ using CourtBookings.Application.Bookings;
+ using CourtBookings.Domain.Bookings;
++using CourtBookings.Domain.Users;
+ 
+ namespace CourtBookings.UnitTests.Application;
+ 
+@@ -23,6 +24,8 @@ internal sealed class InMemoryBookingRepository : IBookingRepository
+         return Task.FromResult(slots);
+     }
+ 
++    public Task<IReadOnlyList<Booking>> ListOwnedByAsync(UserId ownerId) => throw new NotImplementedException();
++
+     public Task AddAsync(Booking booking, CancellationToken cancellationToken)
+     {
+         Saved.Add(booking);

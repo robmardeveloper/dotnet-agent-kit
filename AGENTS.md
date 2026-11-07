@@ -9,8 +9,9 @@
 - **Every rule has an ID** (for example `SOLID-1`). Reviews report violations by ID.
 - **Every rule is one imperative line**, followed by **Why** (the reason) and **Based on** (the principle or book it
   applies). The rule is our own concrete, checkable application of that source, not a quotation from it.
-- **These rules are recommendations** grounded in recognised sources. Whether they make an agent write better code is
-  measured, not assumed: see `docs/experiment.md`.
+- **These rules are recommendations** grounded in recognised sources, not a measured result: whether they make an
+  agent write better code has not been shown. What has been checked is that the reviewer finds violations of them:
+  see `docs/reviewer-check.md`.
 
 ---
 
