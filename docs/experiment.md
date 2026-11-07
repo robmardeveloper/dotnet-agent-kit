@@ -84,8 +84,12 @@ API. The cases are fixed now:
 
    ```text
    claude -p "<the task text>" --model claude-opus-5-5 --permission-mode acceptEdits
-     --allowedTools "Bash(dotnet *)" "Bash(git *)" --output-format stream-json --verbose
+     --allowedTools "Bash(dotnet *)" "Bash(git *)" "PowerShell(dotnet *)" "PowerShell(git *)"
+     --output-format stream-json --verbose < /dev/null
    ```
+
+   The `PowerShell(...)` rules were added after the first dry run: on Windows the agent runs commands with the
+   PowerShell tool, so with only the `Bash(...)` rules `dotnet build` was denied.
 
    The agent can read and edit files and run `dotnet` and `git` commands; anything else is denied without asking. A
    denied attempt (for example, installing a tool) is not a failure of the run: it is recorded, and it is a result.
