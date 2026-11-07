@@ -12,7 +12,7 @@ when it does not?
 
 | | Run A | Run B |
 |---|---|---|
-| Code | `sample/` at commit `493299b` | the same |
+| Code | the repository at commit `0a69b98` (`sample/` as frozen at `493299b`, plus the final `AGENTS.md` and the reviewer; not this file) | the same |
 | `AGENTS.md` | removed | present |
 | `.claude/skills/` | removed | present |
 | Everything else | the same agent, model, version, permission mode and task text | the same |
@@ -68,7 +68,7 @@ API. The cases are fixed now:
 
 ## How it is run
 
-1. **Two fresh clones** of the repository at `493299b`, in folders **outside** any folder with a `CLAUDE.md`
+1. **Two fresh clones** of the repository at `0a69b98`, in folders **outside** any folder with a `CLAUDE.md`
    (for example `C:\kit-experiment\run-a` and `C:\kit-experiment\run-b`). This matters: when there is a `CLAUDE.md`
    in the working folder or above it, Claude Code reads that instead of `AGENTS.md` (Claude Code docs, *How Claude
    remembers your project*, "AGENTS.md"). Clones, not worktrees, because auto memory is shared across worktrees of a
@@ -93,7 +93,7 @@ API. The cases are fixed now:
    instead of a subscription, so that each session reports its exact cost.
 5. Recorded for each run: the full session output (`stream-json`, which is the transcript), the Claude Code
    version, the model, the tokens and cost reported at the end, and the final diff (`git add -A` and
-   `git diff --cached 493299b`). If the agent made commits, the diff includes them.
+   `git diff --cached 0a69b98`). If the agent made commits, the diff includes them.
 6. **A run that fails because of the setup** (a wrong path, a missing permission, a command that does not start) is
    not a result. It is thrown away, the setup is fixed, and the run is repeated from a new clone. Every thrown-away
    attempt and its reason are written in the results. A run where the agent simply does the task badly is never
@@ -101,12 +101,12 @@ API. The cases are fixed now:
 
 ## How it is judged
 
-1. Each result's diff is applied to a **new clone at `493299b`**, which has `AGENTS.md` and the reviewer, and left
+1. Each result's diff is applied to a **new clone at `0a69b98`**, which has `AGENTS.md` and the reviewer, and left
    uncommitted (the reviewer reviews uncommitted changes). Both results then look the same to the reviewer, with no
    commit history to tell them apart, and the clones are named `review-1` and `review-2` so the name does not say
    which run is which. Which is which is written down only after judging.
-2. The reviewer skill `dotnet-review-against-rules` is run **twice on each result**, with base `493299b`, each time
-   in a new non-interactive session (`claude -p "/dotnet-review-against-rules 493299b"`, same model and key as the
+2. The reviewer skill `dotnet-review-against-rules` is run **twice on each result**, with base `0a69b98`, each time
+   in a new non-interactive session (`claude -p "/dotnet-review-against-rules 0a69b98"`, same model and key as the
    runs). After each review, `git status` and `git diff` must be the same as before it. The reviewer is read-only,
    needs a line as evidence for every violation and gives every rule a status (see its `SKILL.md`).
 3. **A violation counts only if both reviews report it** (same rule, same place). One that appears in only one review
