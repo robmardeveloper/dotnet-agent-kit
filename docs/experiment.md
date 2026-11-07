@@ -68,13 +68,14 @@ API. The cases are fixed now:
 
 ## How it is run
 
-1. **Two fresh clones** of the repository at `0a69b98`, in folders **outside** any folder with a `CLAUDE.md`
-   (for example `C:\kit-experiment\run-a` and `C:\kit-experiment\run-b`). This matters: when there is a `CLAUDE.md`
-   in the working folder or above it, Claude Code reads that instead of `AGENTS.md` (Claude Code docs, *How Claude
-   remembers your project*, "AGENTS.md"). Clones, not worktrees, because auto memory is shared across worktrees of a
-   repository.
-2. In each clone the link to GitHub is removed (`git remote remove origin`), so nothing the agent does can leave
-   its folder. In run A, `AGENTS.md` and `.claude/` are also deleted before starting.
+1. **Two fresh copies** of the repository at `0a69b98`, in folders **outside** any folder with a `CLAUDE.md`
+   (`C:\kit-experiment\run-a` and `C:\kit-experiment\run-b`). This matters: when there is a `CLAUDE.md` in the
+   working folder or above it, Claude Code reads that instead of `AGENTS.md` (Claude Code docs, *How Claude
+   remembers your project*, "AGENTS.md"). Separate copies, not worktrees, because auto memory is shared across
+   worktrees of a repository.
+2. In run A, `AGENTS.md` and `.claude/` are deleted. Then each copy gets **a new git repository with one commit,
+   "Initial commit"**, and no history and no remote. Without this, run A could read the rules in the history
+   (`git log`, `git show`), and the agents could push to GitHub. `sample/` is checked to be identical in both.
 3. **A dry run first.** In each clone, a short non-interactive session asks the agent which instruction files it has
    loaded and to run `dotnet build`. In run B it must name `AGENTS.md`; in run A, no instruction file. This checks the
    setup without spending a real run.
@@ -93,7 +94,7 @@ API. The cases are fixed now:
    instead of a subscription, so that each session reports its exact cost.
 5. Recorded for each run: the full session output (`stream-json`, which is the transcript), the Claude Code
    version, the model, the tokens and cost reported at the end, and the final diff (`git add -A` and
-   `git diff --cached 0a69b98`). If the agent made commits, the diff includes them.
+   `git diff --cached` against the copy's "Initial commit"). If the agent made commits, the diff includes them.
 6. **A run that fails because of the setup** (a wrong path, a missing permission, a command that does not start) is
    not a result. It is thrown away, the setup is fixed, and the run is repeated from a new clone. Every thrown-away
    attempt and its reason are written in the results. A run where the agent simply does the task badly is never
