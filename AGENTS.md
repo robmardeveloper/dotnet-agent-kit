@@ -9,9 +9,10 @@
 - **Every rule has an ID** (for example `SOLID-1`). Reviews report violations by ID.
 - **Every rule is one imperative line**, followed by **Why** (the reason) and **Based on** (the principle or book it
   applies). The rule is our own concrete, checkable application of that source, not a quotation from it.
-- **These rules are recommendations** grounded in recognised sources, not a measured result: whether they make an
-  agent write better code has not been shown. What has been checked is that the reviewer finds violations of them:
-  see `docs/reviewer-check.md`.
+- **These rules are recommendations** grounded in recognised sources. Two things have been checked: the reviewer
+  finds violations of them (`docs/reviewer-check.md`), and on one task, with a small model, the code written with
+  them had two security defaults that the code written without them always lacked (`docs/rules-check.md`). That is a
+  narrow result, not proof that the rules make code better in general.
 
 ---
 

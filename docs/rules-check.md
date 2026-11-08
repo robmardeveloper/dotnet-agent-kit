@@ -1,6 +1,11 @@
 # Do the rules make an agent write better code? A check from an empty folder
 
-**Status: design, written and committed before any run.** Results will be added below this design without changing
+**Result: the decision rule was met, with a modest difference.** All six results work the same: 10 of 10 behaviour
+cases and every WORK-7 command passing. In the objective score, each run with the rules scored 0 and each run
+without them scored 2. The difference is the same two security defaults every time, not a hole that could be
+exploited today. See [Results](#results).
+
+**Status: design, written and committed before any run.** Results are added below this design without changing
 it. If something in the design has to change after the first run, the change is written here with the reason and
 the date, and the runs before it are reported as they were.
 
@@ -193,7 +198,106 @@ The real cost of each session is written in the results.
   It was stopped after three commands, all of them reads (it listed the folders and read the task file); it wrote
   nothing. It was run again in its own folder.
 
+## Results
+
+The six runs were made on 2026-11-07, in the order A1, B1, A2, B2, A3, B3, with Claude Code 2.1.319 and
+`claude-haiku-5-5`. None was discarded.
+
+### What can be measured by a machine: no difference
+
+| | A1 | A2 | A3 | B1 | B2 | B3 |
+|---|---|---|---|---|---|---|
+| Behaviour cases passed (of 10) | 10 | 10 | 10 | 10 | 10 | 10 |
+| `dotnet build -warnaserror` | pass | pass | pass | pass | pass | pass |
+| Tests (all passing) | 37 | 33 | 38 | 45 | 60 | 40 |
+| `dotnet format --verify-no-changes` | pass | pass | pass | pass | pass | pass |
+| Vulnerable packages | none | none | none | none | none | none |
+
+Every result does what the task asks. The task was clear enough for the small model to get it right on both
+sides.
+
+### The objective score: the rule is met
+
+| | A1 | A2 | A3 | B1 | B2 | B3 |
+|---|---|---|---|---|---|---|
+| SEC-4: no fallback policy requiring an authenticated user | 1 | 1 | 1 | 0 | 0 | 0 |
+| SEC-5: no `UseExceptionHandler` and `AddProblemDetails` | 1 | 1 | 1 | 0 | 0 | 0 |
+| Other objective violations | 0 | 0 | 0 | 0 (see below) | 0 | 0 |
+| Failed behaviour cases | 0 | 0 | 0 | 0 | 0 | 0 |
+| **Objective score** | **2** | **2** | **2** | **0** | **0** | **0** |
+
+The highest B score (0) is below the lowest A score (2), so the decision rule fixed before the runs is met.
+
+**What the difference is, and what it is not.** Both violations were checked in the code of every result: the three
+A results protect each endpoint by hand with `RequireAuthorization()` and have no exception handler; the three B
+results set a fallback policy and use `UseExceptionHandler` with problem details. Neither is a hole that can be used
+today: the behaviour check shows every endpoint answering 401 without a member, and outside `Development`
+ASP.NET Core does not send error details to the client anyway. They are defaults that protect the code written
+next: a new endpoint that forgets `RequireAuthorization()`, an error that should reach the client as a standard
+problem response. So what this shows is: **with the rules, the small model put in those two defaults every time;
+without them, never.** It does not show that the code without the rules is unsafe.
+
+**Checked by hand.** Every finding in the objective group was checked against the rule text and the code. One was
+counted as a false alarm: in B1, SEC-3 for the loan ID in `POST /loans/{id}/return` not being checked as positive.
+The task asks for 404 when a loan does not exist, which is what a loan ID of 0 gets; the review of B2 came to the
+same conclusion about the same code (it lists it under doubts), and the three A results have the same route without
+it being reported. Counting it would give B1 a score of 1, still below 2, so the result is the same. The six results
+were also searched for the patterns of the objective rules the reviews could have missed (`.Result`, `.Wait()`,
+`GetAwaiter().GetResult()`, `Thread.Sleep`, `async void`, `NotImplementedException`, raw SQL, secrets in
+configuration, `new HttpClient`, singletons holding a `DbContext`): none was found.
+
+### The convention group: reported, does not decide
+
+Violations reported by each review, as the reviewer gave them:
+
+| | A1 | A2 | A3 | B1 | B2 | B3 |
+|---|---|---|---|---|---|---|
+| All violations in the report | 48 | 70 | 67 | 22 | 21 | 9 |
+| Of them, in the objective group | 2 | 2 | 2 | 1 (false alarm) | 0 | 0 |
+
+The biggest difference is the structure: the three B results split the code into Domain, Application,
+Infrastructure and Api projects with architecture tests, and keep package versions in one place; the three A results
+put everything in one project. The rest are rules A was never told about (test names, texts in resource files,
+`CancellationToken` names, central package versions). As said in the design, side B was told these conventions
+and side A was not, so this difference is expected and is not a result.
+
+**Not checked one by one:** the design says every finding is checked by hand. That was done for the objective
+group, which decides the result. The convention findings (about 240) are reported as the reviewer gave them,
+without checking each one, because they do not decide anything. Read them as the reviewer's count, not as a
+checked number.
+
+### What the rules cost
+
+| | A1 | A2 | A3 | B1 | B2 | B3 |
+|---|---|---|---|---|---|---|
+| Cost (US dollars) | 0.06 | 0.06 | 0.15 | 0.42 | 0.38 | 0.42 |
+| Turns | 50 | 58 | 70 | 111 | 113 | 144 |
+| Files written | 16 | 19 | 19 | 38 | 45 | 52 |
+| Commits | 0 | 0 | 0 | 5 | 6 | 6 |
+
+With the rules the model works much more: about twice the turns, 3 to 7 times the cost, two to three times the
+files. On a small model this is still cents per task, but it is not free.
+
+### Cost of the check
+
+| | US dollars |
+|---|---|
+| Two dry runs (the stopped one reported no cost; it ran three read-only commands) | 0.56 |
+| 6 runs with `claude-haiku-5-5` | 1.48 |
+| 6 reviews with `claude-opus-5-5` | 4.34 |
+| **Total** | **6.38** |
+
+### Limits seen in the results
+
+- **The blinding did not hide the side.** The B results have two to three times as many files, several projects
+  and a `Directory.Packages.props`; a reviewer can tell. The reviewer was not told the side, and both counted
+  violations are the kind a reader can check in a few lines of `Program.cs`.
+- **The difference is narrow.** Two rules, the same two in every run. Three runs per side and one task: this shows a
+  consistent effect on this task and this model, not a size of effect, and nothing about stronger models.
+
 ## Files
 
 - [`rules-check/behaviour-check.cs`](rules-check/behaviour-check.cs): the behaviour cases, run unchanged on every
   result.
+- [`rules-check/reports/`](rules-check/reports/): the six review reports, as they came out of the reviewer, named by
+  run. The reviews themselves ran in folders named by random letters.
