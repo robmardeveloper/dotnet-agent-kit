@@ -8,7 +8,8 @@ namespace CourtBookings.IntegrationTests;
 /// <summary>Who may call what (SEC-4): only logged-in users, and each one only on their own bookings.</summary>
 public sealed class AuthorizationEndpointTests : IAsyncDisposable
 {
-    private static readonly BookCourtRequest TomorrowAtTen = new(1, CourtBookingsApiFactory.Now.AddDays(1).AddHours(1), 60);
+    private const int OneHourInMinutes = 60;
+    private static readonly BookCourtRequest TomorrowAtTen = new(1, CourtBookingsApiFactory.Now.AddDays(1).AddHours(1), OneHourInMinutes);
 
     private readonly CourtBookingsApiFactory factory = new();
 

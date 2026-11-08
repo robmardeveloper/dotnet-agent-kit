@@ -9,6 +9,7 @@ namespace CourtBookings.IntegrationTests;
 public sealed class BookCourtEndpointTests : IAsyncDisposable
 {
     private const string BookingsUrl = "/bookings";
+    private const int OneHourInMinutes = 60;
     private static readonly DateTimeOffset TenOClock = CourtBookingsApiFactory.Now.AddHours(1);
 
     private readonly CourtBookingsApiFactory factory = new();
@@ -52,7 +53,7 @@ public sealed class BookCourtEndpointTests : IAsyncDisposable
         var client = factory.CreateClientForAlice();
         await client.PostAsJsonAsync(BookingsUrl, new BookCourtRequest(1, TenOClock, 90), TestContext.Current.CancellationToken);
 
-        var response = await client.PostAsJsonAsync(BookingsUrl, new BookCourtRequest(1, TenOClock.AddMinutes(30), 60), TestContext.Current.CancellationToken);
+        var response = await client.PostAsJsonAsync(BookingsUrl, new BookCourtRequest(1, TenOClock.AddMinutes(30), OneHourInMinutes), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -62,7 +63,7 @@ public sealed class BookCourtEndpointTests : IAsyncDisposable
     {
         var client = factory.CreateClientForAlice();
 
-        var response = await client.PostAsJsonAsync(BookingsUrl, new BookCourtRequest(99, TenOClock, 60), TestContext.Current.CancellationToken);
+        var response = await client.PostAsJsonAsync(BookingsUrl, new BookCourtRequest(99, TenOClock, OneHourInMinutes), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -88,7 +89,7 @@ public sealed class BookCourtEndpointTests : IAsyncDisposable
         var client = factory.CreateClientForAlice();
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
 
-        var response = await client.PostAsJsonAsync(BookingsUrl, new BookCourtRequest(1, TenOClock.AddDays(8), 60), TestContext.Current.CancellationToken);
+        var response = await client.PostAsJsonAsync(BookingsUrl, new BookCourtRequest(1, TenOClock.AddDays(8), OneHourInMinutes), TestContext.Current.CancellationToken);
 
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.Equal("Solo se puede reservar con 7 días de antelación como máximo.", problem?.Title);

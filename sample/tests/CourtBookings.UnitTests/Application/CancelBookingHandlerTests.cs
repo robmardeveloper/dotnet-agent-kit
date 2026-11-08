@@ -11,6 +11,7 @@ public sealed class CancelBookingHandlerTests
     private const int CourtId = 1;
     private const int UnknownBookingId = 99;
     private static readonly DateTimeOffset Now = new(2026, 6, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly TimeSpan OneHour = TimeSpan.FromMinutes(60);
 
     private readonly InMemoryBookingRepository bookings = new();
     private readonly FakeTimeProvider timeProvider = new(Now);
@@ -18,7 +19,7 @@ public sealed class CancelBookingHandlerTests
     [Fact]
     public async Task HandleAsync_ExistingBooking_CancelsAndSavesIt()
     {
-        var booking = Booking.Create(TestUsers.Alice, CourtId, TimeSlot.Create(Now.AddDays(2), TimeSpan.FromMinutes(60)), [], Now);
+        var booking = Booking.Create(TestUsers.Alice, CourtId, TimeSlot.Create(Now.AddDays(2), OneHour), [], Now);
         bookings.Saved.Add(booking);
         var handler = CreateHandler();
 
@@ -31,7 +32,7 @@ public sealed class CancelBookingHandlerTests
     [Fact]
     public async Task HandleAsync_SomeoneElsesBooking_ThrowsBookingNotFoundAndLeavesItConfirmed()
     {
-        var booking = Booking.Create(TestUsers.Alice, CourtId, TimeSlot.Create(Now.AddDays(2), TimeSpan.FromMinutes(60)), [], Now);
+        var booking = Booking.Create(TestUsers.Alice, CourtId, TimeSlot.Create(Now.AddDays(2), OneHour), [], Now);
         bookings.Saved.Add(booking);
         var handler = CreateHandler();
 

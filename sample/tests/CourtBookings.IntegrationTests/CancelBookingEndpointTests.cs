@@ -9,6 +9,7 @@ public sealed class CancelBookingEndpointTests : IAsyncDisposable
 {
     private const int CourtId = 1;
     private const int UnknownBookingId = 99;
+    private const int OneHourInMinutes = 60;
     private static readonly DateTimeOffset InTwoDays = CourtBookingsApiFactory.Now.AddDays(2);
     private static readonly DateTimeOffset InOneHour = CourtBookingsApiFactory.Now.AddHours(1);
 
@@ -69,7 +70,7 @@ public sealed class CancelBookingEndpointTests : IAsyncDisposable
         var booking = await BookAsync(InTwoDays);
         await client.PostAsync(CancelUrl(booking.Id), null, TestContext.Current.CancellationToken);
 
-        var response = await client.PostAsJsonAsync("/bookings", new BookCourtRequest(CourtId, InTwoDays, 60), TestContext.Current.CancellationToken);
+        var response = await client.PostAsJsonAsync("/bookings", new BookCourtRequest(CourtId, InTwoDays, OneHourInMinutes), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
@@ -84,7 +85,7 @@ public sealed class CancelBookingEndpointTests : IAsyncDisposable
 
     private async Task<BookingResponse> BookAsync(DateTimeOffset start)
     {
-        var response = await client.PostAsJsonAsync("/bookings", new BookCourtRequest(CourtId, start, 60), TestContext.Current.CancellationToken);
+        var response = await client.PostAsJsonAsync("/bookings", new BookCourtRequest(CourtId, start, OneHourInMinutes), TestContext.Current.CancellationToken);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<BookingResponse>(TestContext.Current.CancellationToken)
             ?? throw new InvalidOperationException("The API returned an empty booking.");

@@ -8,9 +8,10 @@ public sealed class GetBookingHandlerTests
 {
     private const int CourtId = 1;
     private static readonly DateTimeOffset Now = new(2026, 6, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly TimeSpan OneHour = TimeSpan.FromMinutes(60);
 
     private readonly InMemoryBookingRepository bookings = new();
-    private readonly Booking booking = Booking.Create(TestUsers.Alice, CourtId, TimeSlot.Create(Now.AddDays(2), TimeSpan.FromMinutes(60)), [], Now);
+    private readonly Booking booking = Booking.Create(TestUsers.Alice, CourtId, TimeSlot.Create(Now.AddDays(2), OneHour), [], Now);
 
     public GetBookingHandlerTests()
     {
